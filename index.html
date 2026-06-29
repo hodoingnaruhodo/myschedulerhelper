@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일정 캘린더</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --ink: #1c1c1a;
+    --muted: #6b6b66;
+    --line: #e4e4df;
+    --accent: #3b5bdb;
+    --accent-soft: #e7ecfd;
+    --today: #fff3e0;
+    --today-line: #e8950c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: 20px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .nav { display: flex; align-items: center; gap: 8px; }
+  .nav button {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .nav button:hover { background: var(--accent-soft); }
+  .nav .label { font-size: 15px; font-weight: 600; min-width: 110px; text-align: center; }
+  .today-btn { width: auto !important; padding: 0 12px; font-size: 13px !important; }
+
+  .calendar {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .dow {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border-bottom: 1px solid var(--line);
+  }
+  .dow div {
+    text-align: center;
+    padding: 10px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .dow .sun { color: #d6453e; }
+  .dow .sat { color: #2f6fd6; }
+
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .cell {
+    min-height: 92px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 6px;
+    cursor: pointer;
+    transition: background .12s;
+    position: relative;
+  }
+  .cell:nth-child(7n) { border-right: none; }
+  .cell.empty { background: #fafafa; cursor: default; }
+  .cell:not(.empty):hover { background: var(--accent-soft); }
+  .cell.today { background: var(--today); box-shadow: inset 0 0 0 2px var(--today-line); }
+  .cell.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+  .daynum { font-size: 13px; font-weight: 500; }
+  .cell.sun .daynum { color: #d6453e; }
+  .cell.sat .daynum { color: #2f6fd6; }
+  .events { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
+  .ev {
+    font-size: 11px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .more { font-size: 10px; color: var(--muted); padding-left: 2px; }
+
+  .detail {
+    margin-top: 16px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .detail h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .detail .empty-msg { color: var(--muted); font-size: 14px; }
+  .item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--line);
+  }
+  .item:first-of-type { border-top: none; padding-top: 0; }
+  .item .time {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    min-width: 48px;
+    font-size: 14px;
+  }
+  .item .body .title { font-weight: 500; font-size: 14px; }
+  .item .body .memo { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .status { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+  @media (max-width: 560px) {
+    body { padding: 12px; }
+    .cell { min-height: 64px; padding: 4px; }
+    .ev { font-size: 10px; }
+    .nav .label { min-width: 90px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>일정 캘린더</h1>
+    <div class="nav">
+      <button id="prev" aria-label="이전 달">‹</button>
+      <span class="label" id="monthLabel"></span>
+      <button id="next" aria-label="다음 달">›</button>
+      <button id="today" class="today-btn">오늘</button>
+    </div>
+  </header>
+
+  <div class="calendar">
+    <div class="dow">
+      <div class="sun">일</div><div>월</div><div>화</div><div>수</div>
+      <div>목</div><div>금</div><div class="sat">토</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="detail">
+    <h2 id="detailTitle">날짜를 선택하세요</h2>
+    <div id="detailBody"><p class="empty-msg">날짜를 누르면 그날 일정이 여기 표시됩니다.</p></div>
+  </div>
+
+  <p class="status" id="status"></p>
+</div>
+
+<script>
+  // GitHub Pages에서는 같은 폴더의 schedule.json을 읽습니다.
+  // 미리보기 등 파일을 못 읽는 환경에서는 아래 샘플로 대체됩니다.
+  const SAMPLE = {
+    events: [
+      { date: "2026-07-01", time: "09:00", title: "FOMC 결과 발표", memo: "금리 동결 예상" },
+      { date: "2026-07-01", time: "21:30", title: "미국 CPI", memo: "" },
+      { date: "2026-07-03", time: "14:00", title: "병원 예약", memo: "건강검진" }
+    ]
+  };
+
+  let events = [];
+  let viewYear, viewMonth;   // viewMonth: 0~11
+  let selectedKey = null;
+  const $ = (id) => document.getElementById(id);
+
+  function ymd(y, m, d) {
+    return y + "-" + String(m + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  }
+  function todayKey() {
+    const t = new Date();
+    return ymd(t.getFullYear(), t.getMonth(), t.getDate());
+  }
+
+  function eventsOn(key) {
+    return events
+      .filter(e => e.date === key)
+      .sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+  }
+
+  function render() {
+    $("monthLabel").textContent = viewYear + "년 " + (viewMonth + 1) + "월";
+
+    const grid = $("grid");
+    grid.innerHTML = "";
+
+    const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const tKey = todayKey();
+
+    for (let i = 0; i < firstDow; i++) {
+      const c = document.createElement("div");
+      c.className = "cell empty";
+      grid.appendChild(c);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = ymd(viewYear, viewMonth, d);
+      const dow = new Date(viewYear, viewMonth, d).getDay();
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      if (dow === 0) cell.classList.add("sun");
+      if (dow === 6) cell.classList.add("sat");
+      if (key === tKey) cell.classList.add("today");
+      if (key === selectedKey) cell.classList.add("selected");
+
+      const num = document.createElement("div");
+      num.className = "daynum";
+      num.textContent = d;
+      cell.appendChild(num);
+
+      const dayEvents = eventsOn(key);
+      if (dayEvents.length) {
+        const box = document.createElement("div");
+        box.className = "events";
+        dayEvents.slice(0, 2).forEach(e => {
+          const tag = document.createElement("div");
+          tag.className = "ev";
+          tag.textContent = (e.time ? e.time + " " : "") + e.title;
+          box.appendChild(tag);
+        });
+        if (dayEvents.length > 2) {
+          const more = document.createElement("div");
+          more.className = "more";
+          more.textContent = "+" + (dayEvents.length - 2) + " 더보기";
+          box.appendChild(more);
+        }
+        cell.appendChild(box);
+      }
+
+      cell.addEventListener("click", () => selectDay(key));
+      grid.appendChild(cell);
+    }
+  }
+
+  function selectDay(key) {
+    selectedKey = key;
+    const [y, m, d] = key.split("-").map(Number);
+    $("detailTitle").textContent = y + "년 " + m + "월 " + d + "일";
+
+    const dayEvents = eventsOn(key);
+    const body = $("detailBody");
+    if (!dayEvents.length) {
+      body.innerHTML = '<p class="empty-msg">이 날은 등록된 일정이 없습니다.</p>';
+    } else {
+      body.innerHTML = "";
+      dayEvents.forEach(e => {
+        const item = document.createElement("div");
+        item.className = "item";
+        const memo = e.memo ? '<div class="memo">' + e.memo + "</div>" : "";
+        item.innerHTML =
+          '<div class="time">' + (e.time || "—") + "</div>" +
+          '<div class="body"><div class="title">' + e.title + "</div>" + memo + "</div>";
+        body.appendChild(item);
+      });
+    }
+    render();
+  }
+
+  $("prev").addEventListener("click", () => {
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render();
+  });
+  $("next").addEventListener("click", () => {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render();
+  });
+  $("today").addEventListener("click", () => {
+    const t = new Date();
+    viewYear = t.getFullYear(); viewMonth = t.getMonth();
+    selectDay(todayKey());
+  });
+
+  async function init() {
+    try {
+      const res = await fetch("schedule.json", { cache: "no-store" });
+      if (!res.ok) throw new Error("not found");
+      const data = await res.json();
+      events = data.events || [];
+      $("status").textContent = "일정 " + events.length + "건 불러옴";
+    } catch (err) {
+      events = SAMPLE.events;
+      $("status").textContent = "미리보기 모드 (샘플 일정 표시 중 — GitHub Pages에 올리면 실제 일정이 보입니다)";
+    }
+    const t = new Date();
+    viewYear = t.getFullYear();
+    viewMonth = t.getMonth();
+    render();
+  }
+
+  init();
+</script>
+</body>
+</html>
