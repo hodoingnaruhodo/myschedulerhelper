@@ -45,7 +45,7 @@ def build_message(today, events):
 def send_mail(subject, body):
     user = os.environ["MAIL_USERNAME"]
     pw = os.environ["MAIL_PASSWORD"]
-    to = os.environ["MAIL_TO"]
+    to = os.environ["MAIL_RECEIVER"]
 
     msg = EmailMessage()
     msg["Subject"] = subject
