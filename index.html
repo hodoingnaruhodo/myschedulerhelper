@@ -23,11 +23,11 @@
   .today-btn { width: auto !important; padding: 0 12px; font-size: 13px !important; }
 
   .calendar { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  .dow { display: grid; grid-template-columns: repeat(7, 1fr); border-bottom: 1px solid var(--line); }
+  .dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
   .dow div { text-align: center; padding: 10px 0; font-size: 12px; font-weight: 600; color: var(--muted); }
   .dow .sun { color: #d6453e; } .dow .sat { color: #2f6fd6; }
-  .grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-  .cell { min-height: 92px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px; cursor: pointer; transition: background .12s; position: relative; user-select: none; }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .cell { min-height: 92px; min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px; cursor: pointer; transition: background .12s; position: relative; user-select: none; }
   .cell:nth-child(7n) { border-right: none; }
   .cell.empty { background: #fafafa; cursor: default; }
   .cell:not(.empty):hover { background: var(--accent-soft); }
@@ -35,9 +35,11 @@
   .cell.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
   .daynum { font-size: 13px; font-weight: 500; }
   .cell.sun .daynum { color: #d6453e; } .cell.sat .daynum { color: #2f6fd6; }
-  .events { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
-  .ev { font-size: 11px; background: var(--accent); color: #fff; border-radius: 4px; padding: 1px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .events { margin-top: 4px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .ev { font-size: 11px; background: var(--accent); color: #fff; border-radius: 4px; padding: 2px 5px; max-width: 100%; overflow: hidden; }
   .ev.local { background: #5a48c4; }
+  .ev-time { display: block; font-size: 9px; opacity: .85; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .ev-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.25; }
   .more { font-size: 10px; color: var(--muted); padding-left: 2px; }
 
   .detail { margin-top: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
@@ -125,7 +127,10 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>일정 캘린더</h1>
+    <div style="display:flex; align-items:baseline; gap:12px;">
+      <h1>일정 캘린더</h1>
+      <a href="mistakes.html" style="font-size:13px; color:var(--accent); text-decoration:none;">실수 노트 →</a>
+    </div>
     <div class="nav">
       <button id="prev" aria-label="이전 달">‹</button>
       <span class="label" id="monthLabel"></span>
@@ -233,6 +238,7 @@
   function todayKey(){ const t = new Date(); return ymd(t.getFullYear(), t.getMonth(), t.getDate()); }
   function eventsOn(key){ return allEvents().filter(e => e.date === key).sort((a,b)=>(a.time||"").localeCompare(b.time||"")); }
   function toFloat(time){ const [h,m] = (time||"0:0").split(":").map(Number); return h + (m||0)/60; }
+  function snap10(t){ if(!t) return t; let [h,m]=t.split(":").map(Number); m=Math.round(m/10)*10; if(m===60){m=0; h=(h+1)%24;} return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0"); }
   function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
   function render(){
@@ -254,7 +260,7 @@
       const de = eventsOn(key);
       if (de.length){
         const box = document.createElement("div"); box.className="events";
-        de.slice(0,2).forEach(e=>{ const tag=document.createElement("div"); tag.className="ev"+(e._local?" local":""); tag.textContent=(e.time?e.time+" ":"")+e.title; box.appendChild(tag); });
+        de.slice(0,2).forEach(e=>{ const tag=document.createElement("div"); tag.className="ev"+(e._local?" local":""); tag.innerHTML=(e.time?'<span class="ev-time">'+e.time+'</span>':'')+'<span class="ev-title">'+esc(e.title)+'</span>'; box.appendChild(tag); });
         if (de.length>2){ const more=document.createElement("div"); more.className="more"; more.textContent="+"+(de.length-2)+" 더보기"; box.appendChild(more); }
         cell.appendChild(box);
       }
@@ -415,10 +421,13 @@
     refreshTypeList();
   }
   function addEvent(){
-    const time=$("fTime").value, end=$("fEnd").value, title=$("fTitle").value.trim(), taskType=$("fType").value.trim(), memo=$("fMemo").value.trim();
+    const time=snap10($("fTime").value), end=snap10($("fEnd").value), title=$("fTitle").value.trim(), taskType=$("fType").value.trim(), memo=$("fMemo").value.trim();
     if (!title){ $("fTitle").focus(); return; }
     const ev = { date: currentDayKey, time, title, memo, taskType };
-    if (end && end > time) ev.endTime = end;
+    if (end && end !== time){
+      if (end < time){ ev.time = end; ev.endTime = time; }
+      else { ev.endTime = end; }
+    }
     if (editingIdx !== null){ myEvents[editingIdx] = ev; }
     else { myEvents.push(ev); }
     saveMy(); refreshTypeList();
@@ -448,6 +457,8 @@
   $("selMAdd").addEventListener("click", ()=>{ if(!currentSelType) return; addMistake("sel", currentSelType); });
   $("fSave").addEventListener("click", addEvent);
   $("fCancel").addEventListener("click", resetForm);
+  $("fTime").addEventListener("change", ()=>{ $("fTime").value = snap10($("fTime").value); });
+  $("fEnd").addEventListener("change", ()=>{ $("fEnd").value = snap10($("fEnd").value); });
 
   async function init(){
     loadMy(); loadMistakes();
