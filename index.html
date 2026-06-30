@@ -1,4 +1,4 @@
-<!-- index v12 -->
+<!-- index v13 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -44,6 +44,11 @@
   .cell.today { background: var(--today); box-shadow: inset 0 0 0 2px var(--today-line); }
   .cell.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
   .cell.pulse { animation: cellpulse 0.9s ease 3; }
+  .data-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .data-btn { font-size: 13px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+  .data-btn:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .data-btn.import { display: inline-block; }
+  .data-hint { font-size: 12px; color: var(--muted); flex: 1; min-width: 180px; }
   .cell.highlight { background: #ffe3e0; box-shadow: inset 0 0 0 2px var(--now); }
   @keyframes cellpulse { 0%,100% { box-shadow: inset 0 0 0 2px var(--accent); } 50% { box-shadow: inset 0 0 0 4px var(--today-line); background: var(--today); } }
   .daynum { font-size: 13px; font-weight: 500; }
@@ -171,6 +176,12 @@
   </div>
 
   <p class="status" id="status"></p>
+
+  <div class="data-bar">
+    <button id="exportBtn" class="data-btn">데이터 내보내기</button>
+    <label class="data-btn import">데이터 불러오기<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+    <span class="data-hint">실수·회고·진행 업무·직접 추가한 일정을 파일 하나로 저장하거나 복원합니다.</span>
+  </div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -535,6 +546,33 @@
   $("aiBtn").addEventListener("click", getAdvice);
   $("aiClose").addEventListener("click", closeAi);
   $("aiOverlay").addEventListener("click", (e)=>{ if(e.target===$("aiOverlay")) closeAi(); });
+
+  const DATA_KEYS = ["myEvents", "mistakes", "feedback", "tasks"];
+  function exportData(){
+    const out = {};
+    DATA_KEYS.forEach(k=>{ const v = store.get(k); if (v != null) out[k] = v; });
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "scheduler-data-" + todayKey() + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function importData(file){
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      let obj;
+      try { obj = JSON.parse(reader.result); }
+      catch(e){ alert("파일을 읽을 수 없습니다. 올바른 데이터 파일인지 확인해 주세요."); return; }
+      if (!confirm("불러오면 현재 이 브라우저의 데이터를 덮어씁니다. 계속할까요?")) return;
+      DATA_KEYS.forEach(k=>{ if (obj[k] != null) store.set(k, obj[k]); });
+      alert("데이터를 불러왔습니다. 페이지를 새로고침합니다.");
+      location.reload();
+    };
+    reader.readAsText(file);
+  }
+  $("exportBtn").addEventListener("click", exportData);
+  $("importFile").addEventListener("change", (e)=>{ const f = e.target.files[0]; if (f) importData(f); e.target.value = ""; });
   $("overlay").addEventListener("click", (e)=>{ if(e.target===$("overlay")) closeDayView(); });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDayView(); });
 
