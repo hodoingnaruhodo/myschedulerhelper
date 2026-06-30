@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>실수 노트</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd;
+    --warn: #b5790c; --warn-soft: #fdf0d8; --danger: #d6453e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; padding: 20px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-link { font-size: 13px; color: var(--accent); text-decoration: none; }
+  .page-link:hover { text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  .new-cat { display: flex; gap: 8px; margin-bottom: 18px; }
+  .new-cat input { flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit; }
+  .new-cat input:focus { outline: none; border-color: var(--accent); }
+  .new-cat button { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 16px; font-size: 14px; cursor: pointer; }
+
+  .cat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  .cat-name { font-size: 16px; font-weight: 600; }
+  .cat-meta { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
+  .cat-del { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .cat-del.armed { border-color: var(--danger); background: var(--danger); color: #fff; }
+
+  .mlist { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .mlist li { background: var(--warn-soft); border: 1px solid #f0dcae; border-radius: 8px; padding: 8px 12px; font-size: 14px; color: #6b4e0c; display: flex; gap: 8px; align-items: start; }
+  .mlist li .mtxt { flex: 1; }
+  .mlist li .mtxt::before { content: "⚠ "; }
+  .mlist li .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .none { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+
+  .add-row { display: flex; gap: 6px; }
+  .add-row input { flex: 1; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; }
+  .add-row input:focus { outline: none; border-color: var(--warn); }
+  .add-row button { border: 1px solid var(--warn); background: var(--card); color: var(--warn); border-radius: 8px; padding: 0 14px; font-size: 14px; cursor: pointer; }
+
+  .empty-all { text-align: center; color: var(--muted); padding: 50px 20px; }
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>실수 노트</h1>
+    <a href="index.html" class="page-link">← 캘린더로</a>
+  </header>
+  <p class="sub" id="sub">업무 카테고리별로 과거 실수를 모아둡니다.</p>
+
+  <div class="new-cat">
+    <input type="text" id="newCat" placeholder="새 업무 카테고리 (예: 월말 정산)">
+    <button id="newCatBtn">추가</button>
+  </div>
+
+  <div id="cats"></div>
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const store = (() => {
+    let mem = {}, ok = false;
+    try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); ok = true; } catch (e) {}
+    return { ok,
+      get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+      set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } } };
+  })();
+
+  let mistakes = {}, myEvents = [], jsonEvents = [];
+
+  function loadMistakes(){ try { mistakes = JSON.parse(store.get("mistakes")) || {}; } catch(e){ mistakes = {}; } }
+  function saveMistakes(){ store.set("mistakes", JSON.stringify(mistakes)); }
+  function loadMy(){ try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; } }
+  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+  function categories(){
+    const set = new Set(Object.keys(mistakes));
+    myEvents.forEach(e=>{ if(e.taskType) set.add(e.taskType); });
+    jsonEvents.forEach(e=>{ if(e.taskType) set.add(e.taskType); });
+    return [...set].sort((a,b)=>a.localeCompare(b, "ko"));
+  }
+  function eventCount(cat){
+    return myEvents.filter(e=>e.taskType===cat).length + jsonEvents.filter(e=>e.taskType===cat).length;
+  }
+
+  function render(){
+    const cats = categories();
+    const wrap = $("cats");
+    wrap.innerHTML = "";
+    const totalM = Object.values(mistakes).reduce((s,a)=>s+a.length, 0);
+    $("sub").textContent = "카테고리 " + cats.length + "개 · 기록된 실수 " + totalM + "건";
+
+    if (!cats.length){
+      wrap.innerHTML = '<div class="empty-all">아직 카테고리가 없습니다.<br>위에서 새 카테고리를 추가하거나, 캘린더에서 일정에 업무 카테고리를 달면 여기 모입니다.</div>';
+      $("note").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 캘린더와 데이터가 공유됩니다)";
+      return;
+    }
+
+    cats.forEach(cat => {
+      const list = mistakes[cat] || [];
+      const card = document.createElement("div");
+      card.className = "cat";
+
+      const head = document.createElement("div");
+      head.className = "cat-head";
+      head.innerHTML = '<div><span class="cat-name">' + esc(cat) + '</span><span class="cat-meta">실수 ' + list.length + '건 · 일정 ' + eventCount(cat) + '건</span></div>';
+      const delBtn = document.createElement("button");
+      delBtn.className = "cat-del";
+      delBtn.textContent = "카테고리 삭제";
+      let armed = false;
+      delBtn.onclick = () => {
+        if (!armed){ armed = true; delBtn.textContent = "한번 더 누르면 삭제"; delBtn.classList.add("armed"); }
+        else { delete mistakes[cat]; saveMistakes(); render(); }
+      };
+      head.appendChild(delBtn);
+      card.appendChild(head);
+
+      if (list.length){
+        const ul = document.createElement("ul");
+        ul.className = "mlist";
+        list.forEach((txt, i) => {
+          const li = document.createElement("li");
+          const span = document.createElement("span"); span.className = "mtxt"; span.textContent = txt;
+          const del = document.createElement("span"); del.className = "mdel"; del.textContent = "삭제";
+          del.onclick = () => { mistakes[cat].splice(i,1); saveMistakes(); render(); };
+          li.appendChild(span); li.appendChild(del); ul.appendChild(li);
+        });
+        card.appendChild(ul);
+      } else {
+        const none = document.createElement("div"); none.className = "none"; none.textContent = "아직 기록된 실수가 없습니다.";
+        card.appendChild(none);
+      }
+
+      const row = document.createElement("div");
+      row.className = "add-row";
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.placeholder = "이 업무에서 한 실수를 기록";
+      const btn = document.createElement("button"); btn.textContent = "추가";
+      const addFn = () => {
+        const v = inp.value.trim(); if (!v) return;
+        if (!mistakes[cat]) mistakes[cat] = [];
+        mistakes[cat].push(v); saveMistakes(); render();
+      };
+      btn.onclick = addFn;
+      inp.addEventListener("keydown", (e)=>{ if(e.key==="Enter") addFn(); });
+      row.appendChild(inp); row.appendChild(btn);
+      card.appendChild(row);
+
+      wrap.appendChild(card);
+    });
+    $("note").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 캘린더와 데이터가 공유됩니다)";
+  }
+
+  $("newCatBtn").addEventListener("click", () => {
+    const name = $("newCat").value.trim();
+    if (!name) return;
+    if (!mistakes[name]) mistakes[name] = [];
+    $("newCat").value = "";
+    saveMistakes(); render();
+  });
+  $("newCat").addEventListener("keydown", (e)=>{ if(e.key==="Enter") $("newCatBtn").click(); });
+
+  async function init(){
+    loadMistakes(); loadMy();
+    try {
+      const res = await fetch("schedule.json", { cache: "no-store" });
+      if (res.ok){ const data = await res.json(); jsonEvents = data.events || []; }
+    } catch(e){ jsonEvents = []; }
+    render();
+  }
+  init();
+</script>
+</body>
+</html>
