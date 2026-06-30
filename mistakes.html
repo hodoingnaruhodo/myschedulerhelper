@@ -34,12 +34,14 @@
 
   .mlist { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   .mlist li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
-  .m-top { display: flex; gap: 8px; align-items: baseline; }
+  .m-top { display: flex; gap: 8px; align-items: center; }
   .m-top .mtxt { flex: 1; font-size: 14px; color: var(--ink); }
-  .m-top .m-info { font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .m-count { font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 10px; flex-shrink: 0; white-space: nowrap; }
+  .m-count.c1 { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .m-count.c2 { background: #fdf0d8; color: #b5790c; }
+  .m-count.c3 { background: #fdeceb; color: var(--danger); }
   .m-top .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
-  .m-bar { height: 6px; background: var(--bg); border-radius: 3px; margin-top: 8px; overflow: hidden; }
-  .m-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
+  .m-when { font-size: 12px; color: var(--muted); margin-top: 6px; }
   .none { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 
   .add-row { display: flex; gap: 6px; }
@@ -121,7 +123,7 @@
 
       const head = document.createElement("div");
       head.className = "cat-head";
-      const recentTxt = list.length ? '<div class="cat-recent">마지막 실수 · ' + ago(lastTs) + '</div>' : '';
+      const recentTxt = lastTs ? '<div class="cat-recent">마지막 실수 · ' + ago(lastTs) + '</div>' : '';
       head.innerHTML = '<div><span class="cat-name">' + esc(cat) + '</span><span class="cat-meta">총 ' + totalCount + '회 · 항목 ' + list.length + '개 · 일정 ' + eventCount(cat) + '건</span>' + recentTxt + '</div>';
       const delBtn = document.createElement("button");
       delBtn.className = "cat-del";
@@ -135,24 +137,22 @@
       card.appendChild(head);
 
       if (list.length){
-        const maxc = Math.max(...list.map(m=>m.count||1));
         const ul = document.createElement("ul");
         ul.className = "mlist";
         list.slice().sort((a,b)=>(b.count||1)-(a.count||1)).forEach((item) => {
           const i = list.indexOf(item);
+          const cnt = item.count||1;
           const li = document.createElement("li");
           const top = document.createElement("div"); top.className = "m-top";
           const span = document.createElement("span"); span.className = "mtxt"; span.textContent = item.text;
-          const info = document.createElement("span"); info.className = "m-info";
-          info.textContent = (item.count||1) + "회 · " + ago(item.last);
+          const badge = document.createElement("span");
+          badge.className = "m-count " + (cnt>=3?"c3":cnt===2?"c2":"c1");
+          badge.textContent = cnt + "회";
           const del = document.createElement("span"); del.className = "mdel"; del.textContent = "삭제";
           del.onclick = () => { mistakes[cat].splice(i,1); saveMistakes(); render(); };
-          top.appendChild(span); top.appendChild(info); top.appendChild(del);
+          top.appendChild(span); top.appendChild(badge); top.appendChild(del);
           li.appendChild(top);
-          const bar = document.createElement("div"); bar.className = "m-bar";
-          const fill = document.createElement("div"); fill.className = "m-bar-fill";
-          fill.style.width = Math.round((item.count||1)/maxc*100) + "%";
-          bar.appendChild(fill); li.appendChild(bar);
+          if (item.last){ const w = document.createElement("div"); w.className = "m-when"; w.textContent = "마지막 발생: " + ago(item.last); li.appendChild(w); }
           ul.appendChild(li);
         });
         card.appendChild(ul);
