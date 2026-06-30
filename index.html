@@ -1,4 +1,4 @@
-<!-- index v7 -->
+<!-- index v9 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -22,6 +22,12 @@
   .nav button:hover { background: var(--accent-soft); }
   .nav .label { font-size: 15px; font-weight: 600; min-width: 110px; text-align: center; }
   .today-btn { width: auto !important; padding: 0 12px; font-size: 13px !important; }
+  .ai-trigger { font-size: 13px; color: #fff; background: var(--accent); border: none; border-radius: 7px; padding: 5px 14px; cursor: pointer; }
+  .ai-trigger:hover { background: #2f4cc0; }
+  .ai-loading { text-align: center; color: var(--muted); padding: 36px 12px; font-size: 14px; }
+  .ai-loading span { display: block; font-size: 12px; margin-top: 6px; }
+  .ai-advice { white-space: pre-wrap; font-size: 14px; line-height: 1.65; color: var(--ink); }
+  .ai-error { color: var(--danger); font-size: 14px; line-height: 1.5; }
 
   .calendar { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
   .dow { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
@@ -102,6 +108,7 @@
   .mbox li .mtxt { flex: 1; }
   .mcount { font-size: 11px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; flex-shrink: 0; }
   .mbox li .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .mbox li .mdel.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
   .mbox .none { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
   .mp-add { display: flex; gap: 6px; }
   .mp-add input { flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
@@ -131,9 +138,10 @@
 <body>
 <div class="wrap">
   <header>
-    <div style="display:flex; align-items:baseline; gap:12px;">
+    <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap;">
       <h1>일정 캘린더</h1>
       <a href="mistakes.html" style="font-size:13px; color:var(--accent); text-decoration:none;">실수 노트 →</a>
+      <button id="aiBtn" class="ai-trigger">AI 조언</button>
     </div>
     <div class="nav">
       <button id="prev" aria-label="이전 달">‹</button>
@@ -182,7 +190,7 @@
           <div class="mp-title" id="selMTitle"></div>
           <ul id="selMList"></ul>
           <div class="none" id="selMNone" style="display:none">아직 기록된 실수가 없습니다.</div>
-          <div class="mp-add"><input type="text" id="selMInput" placeholder="이 업무의 실수를 기록"><button id="selMAdd">추가</button></div>
+          <div class="mp-add"><input type="text" id="selMInput" list="selMDL" placeholder="실수 기록 (기존 실수는 목록에서 선택)"><datalist id="selMDL"></datalist><button id="selMAdd">추가</button></div>
         </div>
       </div>
 
@@ -199,11 +207,24 @@
           <div class="mp-title" id="addMTitle"></div>
           <ul id="addMList"></ul>
           <div class="none" id="addMNone" style="display:none">아직 기록된 실수가 없습니다.</div>
-          <div class="mp-add"><input type="text" id="addMInput" placeholder="이 업무의 실수를 기록"><button id="addMAdd">추가</button></div>
+          <div class="mp-add"><input type="text" id="addMInput" list="addMDL" placeholder="실수 기록 (기존 실수는 목록에서 선택)"><datalist id="addMDL"></datalist><button id="addMAdd">추가</button></div>
         </div>
         <div class="form-btns"><button class="btn-save" id="fSave">저장</button><button class="btn-cancel" id="fCancel">취소</button></div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="aiOverlay">
+  <div class="day-modal">
+    <div class="day-head">
+      <div>
+        <div class="dtitle">AI 업무 조언</div>
+        <div class="dsub">오늘 일정과 과거 실수를 참고한 조언</div>
+      </div>
+      <button class="day-close" id="aiClose" aria-label="닫기">&times;</button>
+    </div>
+    <div class="day-body" id="aiBody" style="padding:18px;"></div>
   </div>
 </div>
 
@@ -216,6 +237,32 @@
 
   const WD = ["일", "월", "화", "수", "목", "금", "토"];
   const $ = (id) => document.getElementById(id);
+  const BACKEND = "https://myschedulerhelper-backend.onrender.com";
+
+  // 페이지 로드 시 서버를 미리 깨워 둠 (조언 누를 때 빠르게 응답)
+  fetch(BACKEND + "/health").catch(() => {});
+
+  async function getAdvice(){
+    $("aiOverlay").classList.add("open");
+    const body = $("aiBody");
+    body.innerHTML = '<div class="ai-loading">AI가 오늘 업무 조언을 준비 중입니다…<span>서버를 깨우는 중이면 30초~1분 걸릴 수 있어요.</span></div>';
+    const today = todayKey();
+    const todays = allEvents().filter(e => e.date === today);
+    try {
+      const res = await fetch(BACKEND + "/advice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule: todays, mistakes: mistakes })
+      });
+      if (!res.ok) throw new Error("서버 응답 " + res.status);
+      const data = await res.json();
+      body.innerHTML = '<div class="ai-advice"></div>';
+      body.querySelector(".ai-advice").textContent = data.advice || "조언을 받지 못했습니다.";
+    } catch (e) {
+      body.innerHTML = '<div class="ai-error">조언을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.<br>(' + e.message + ')</div>';
+    }
+  }
+  function closeAi(){ $("aiOverlay").classList.remove("open"); }
 
   const store = (() => {
     let mem = {}, ok = false;
@@ -378,17 +425,22 @@
   function hideSelected(){ $("selPanel").classList.remove("show"); document.querySelectorAll(".tl-ev.active").forEach(b=>b.classList.remove("active")); }
 
   function renderMistake(scope, type){
-    const titleEl = $(scope+"MTitle"), listEl = $(scope+"MList"), noneEl = $(scope+"MNone");
+    const titleEl = $(scope+"MTitle"), listEl = $(scope+"MList"), noneEl = $(scope+"MNone"), dl = $(scope+"MDL");
     titleEl.textContent = '"'+type+'" 과거 실수';
     const list = mistakes[type] || [];
     listEl.innerHTML = "";
     noneEl.style.display = list.length ? "none" : "block";
+    if (dl) dl.innerHTML = list.map(m=>'<option value="'+m.text.replace(/"/g,"&quot;")+'">').join("");
     list.forEach((item, i)=>{
       const li = document.createElement("li");
       const span = document.createElement("span"); span.className="mtxt"; span.textContent = item.text; li.appendChild(span);
       if ((item.count||1) > 1){ const c=document.createElement("span"); c.className="mcount"; c.textContent="×"+item.count; li.appendChild(c); }
       const del = document.createElement("span"); del.className="mdel"; del.textContent="삭제";
-      del.onclick = ()=>{ mistakes[type].splice(i,1); if(!mistakes[type].length) delete mistakes[type]; saveMistakes(); renderMistake(scope,type); refreshTypeList(); };
+      let armed = false;
+      del.onclick = ()=>{
+        if (!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); }
+        else { mistakes[type].splice(i,1); if(!mistakes[type].length) delete mistakes[type]; saveMistakes(); renderMistake(scope,type); refreshTypeList(); }
+      };
       li.appendChild(del); listEl.appendChild(li);
     });
   }
@@ -459,6 +511,9 @@
   $("next").addEventListener("click", ()=>{ viewMonth++; if(viewMonth>11){viewMonth=0;viewYear++;} render(); });
   $("today").addEventListener("click", ()=>{ const t=new Date(); viewYear=t.getFullYear(); viewMonth=t.getMonth(); selectDay(todayKey()); });
   $("dayClose").addEventListener("click", closeDayView);
+  $("aiBtn").addEventListener("click", getAdvice);
+  $("aiClose").addEventListener("click", closeAi);
+  $("aiOverlay").addEventListener("click", (e)=>{ if(e.target===$("aiOverlay")) closeAi(); });
   $("overlay").addEventListener("click", (e)=>{ if(e.target===$("overlay")) closeDayView(); });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeDayView(); });
 
