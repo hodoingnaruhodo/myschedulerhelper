@@ -28,14 +28,18 @@
   .cat-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
   .cat-name { font-size: 16px; font-weight: 600; }
   .cat-meta { font-size: 12px; color: var(--muted); margin-left: 8px; font-weight: 400; }
+  .cat-recent { font-size: 12px; color: var(--accent); margin-top: 2px; }
   .cat-del { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 7px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
   .cat-del.armed { border-color: var(--danger); background: var(--danger); color: #fff; }
 
-  .mlist { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-  .mlist li { background: var(--warn-soft); border: 1px solid #f0dcae; border-radius: 8px; padding: 8px 12px; font-size: 14px; color: #6b4e0c; display: flex; gap: 8px; align-items: start; }
-  .mlist li .mtxt { flex: 1; }
-  .mlist li .mtxt::before { content: "⚠ "; }
-  .mlist li .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .mlist { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .mlist li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .m-top { display: flex; gap: 8px; align-items: baseline; }
+  .m-top .mtxt { flex: 1; font-size: 14px; color: var(--ink); }
+  .m-top .m-info { font-size: 12px; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .m-top .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .m-bar { height: 6px; background: var(--bg); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .m-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; }
   .none { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 
   .add-row { display: flex; gap: 6px; }
@@ -76,8 +80,10 @@
 
   let mistakes = {}, myEvents = [], jsonEvents = [];
 
-  function loadMistakes(){ try { mistakes = JSON.parse(store.get("mistakes")) || {}; } catch(e){ mistakes = {}; } }
+  function migrateMistakes(obj){ const out={}; for(const k in obj){ out[k]=(obj[k]||[]).map(it=> typeof it==="string"?{text:it,count:1,last:null,first:null}:it); } return out; }
+  function loadMistakes(){ try { mistakes = migrateMistakes(JSON.parse(store.get("mistakes")) || {}); } catch(e){ mistakes = {}; } }
   function saveMistakes(){ store.set("mistakes", JSON.stringify(mistakes)); }
+  function ago(ts){ if(!ts) return "기록 시점 없음"; const d=Math.floor((Date.now()-ts)/86400000); if(d<=0) return "오늘"; if(d===1) return "어제"; if(d<30) return d+"일 전"; const dt=new Date(ts); return (dt.getMonth()+1)+"월 "+dt.getDate()+"일"; }
   function loadMy(){ try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; } }
   function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
@@ -95,8 +101,9 @@
     const cats = categories();
     const wrap = $("cats");
     wrap.innerHTML = "";
-    const totalM = Object.values(mistakes).reduce((s,a)=>s+a.length, 0);
-    $("sub").textContent = "카테고리 " + cats.length + "개 · 기록된 실수 " + totalM + "건";
+    const totalItems = Object.values(mistakes).reduce((s,a)=>s+a.length, 0);
+    const totalOccur = Object.values(mistakes).reduce((s,a)=>s+a.reduce((x,m)=>x+(m.count||1),0), 0);
+    $("sub").textContent = "카테고리 " + cats.length + "개 · 실수 유형 " + totalItems + "개 · 총 " + totalOccur + "회 발생";
 
     if (!cats.length){
       wrap.innerHTML = '<div class="empty-all">아직 카테고리가 없습니다.<br>위에서 새 카테고리를 추가하거나, 캘린더에서 일정에 업무 카테고리를 달면 여기 모입니다.</div>';
@@ -109,9 +116,13 @@
       const card = document.createElement("div");
       card.className = "cat";
 
+      const lastTs = list.reduce((mx, m)=> Math.max(mx, m.last||0), 0);
+      const totalCount = list.reduce((s,m)=> s+(m.count||1), 0);
+
       const head = document.createElement("div");
       head.className = "cat-head";
-      head.innerHTML = '<div><span class="cat-name">' + esc(cat) + '</span><span class="cat-meta">실수 ' + list.length + '건 · 일정 ' + eventCount(cat) + '건</span></div>';
+      const recentTxt = list.length ? '<div class="cat-recent">마지막 실수 · ' + ago(lastTs) + '</div>' : '';
+      head.innerHTML = '<div><span class="cat-name">' + esc(cat) + '</span><span class="cat-meta">총 ' + totalCount + '회 · 항목 ' + list.length + '개 · 일정 ' + eventCount(cat) + '건</span>' + recentTxt + '</div>';
       const delBtn = document.createElement("button");
       delBtn.className = "cat-del";
       delBtn.textContent = "카테고리 삭제";
@@ -124,14 +135,25 @@
       card.appendChild(head);
 
       if (list.length){
+        const maxc = Math.max(...list.map(m=>m.count||1));
         const ul = document.createElement("ul");
         ul.className = "mlist";
-        list.forEach((txt, i) => {
+        list.slice().sort((a,b)=>(b.count||1)-(a.count||1)).forEach((item) => {
+          const i = list.indexOf(item);
           const li = document.createElement("li");
-          const span = document.createElement("span"); span.className = "mtxt"; span.textContent = txt;
+          const top = document.createElement("div"); top.className = "m-top";
+          const span = document.createElement("span"); span.className = "mtxt"; span.textContent = item.text;
+          const info = document.createElement("span"); info.className = "m-info";
+          info.textContent = (item.count||1) + "회 · " + ago(item.last);
           const del = document.createElement("span"); del.className = "mdel"; del.textContent = "삭제";
           del.onclick = () => { mistakes[cat].splice(i,1); saveMistakes(); render(); };
-          li.appendChild(span); li.appendChild(del); ul.appendChild(li);
+          top.appendChild(span); top.appendChild(info); top.appendChild(del);
+          li.appendChild(top);
+          const bar = document.createElement("div"); bar.className = "m-bar";
+          const fill = document.createElement("div"); fill.className = "m-bar-fill";
+          fill.style.width = Math.round((item.count||1)/maxc*100) + "%";
+          bar.appendChild(fill); li.appendChild(bar);
+          ul.appendChild(li);
         });
         card.appendChild(ul);
       } else {
@@ -142,12 +164,16 @@
       const row = document.createElement("div");
       row.className = "add-row";
       const inp = document.createElement("input");
-      inp.type = "text"; inp.placeholder = "이 업무에서 한 실수를 기록";
+      inp.type = "text"; inp.placeholder = "이 업무에서 한 실수를 기록 (같은 실수는 자동으로 횟수 누적)";
       const btn = document.createElement("button"); btn.textContent = "추가";
       const addFn = () => {
         const v = inp.value.trim(); if (!v) return;
         if (!mistakes[cat]) mistakes[cat] = [];
-        mistakes[cat].push(v); saveMistakes(); render();
+        const now = Date.now();
+        const ex = mistakes[cat].find(m => m.text === v);
+        if (ex){ ex.count = (ex.count||1)+1; ex.last = now; }
+        else { mistakes[cat].push({ text: v, count: 1, last: now, first: now }); }
+        saveMistakes(); render();
       };
       btn.onclick = addFn;
       inp.addEventListener("keydown", (e)=>{ if(e.key==="Enter") addFn(); });
