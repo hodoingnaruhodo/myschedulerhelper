@@ -1,0 +1,185 @@
+<!-- progress v1 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>진행 상황</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd; --danger: #d6453e; --warn: #b5790c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; padding: 20px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-link { font-size: 13px; color: var(--accent); text-decoration: none; }
+  .page-link:hover { text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  .new { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .new .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .new label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .new input { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; width: 100%; }
+  .new input:focus { outline: none; border-color: var(--accent); }
+  .f-name { flex: 1; min-width: 160px; }
+  .f-date { width: 150px; }
+  .f-hours { width: 110px; }
+  .new .addbtn { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; margin-top: 10px; }
+
+  .task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .task.overdue { border-color: #f3c4c1; }
+  .t-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .t-name { font-size: 15px; font-weight: 600; }
+  .t-dday { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+  .dd-near { background: #fdeceb; color: var(--danger); }
+  .dd-soon { background: #fdf0d8; color: var(--warn); }
+  .dd-ok { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .t-del { margin-left: auto; color: #a55; font-size: 12px; cursor: pointer; }
+  .t-del.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
+  .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bar-fill.done { background: #2e9e5b; }
+  .t-meta { font-size: 13px; color: var(--muted); }
+  .t-note { font-size: 13px; color: var(--ink); margin-top: 6px; white-space: pre-wrap; }
+  .t-prog { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .t-prog input { width: 72px; border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; }
+  .t-prog button { border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .t-prog .donebtn { border-color: #2e9e5b; color: #2e9e5b; }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>진행 상황</h1>
+    <a href="index.html" class="page-link">← 캘린더</a>
+    <a href="feedback.html" class="page-link">하루 회고</a>
+    <a href="mistakes.html" class="page-link">실수 노트</a>
+  </header>
+  <p class="sub">마감이 있는 업무의 진행 상황을 기록합니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
+
+  <div class="new">
+    <div class="row">
+      <div class="f-name"><label>업무 이름</label><input type="text" id="nName" placeholder="예: 분기 보고서"></div>
+      <div class="f-date"><label>마감일</label><input type="date" id="nDate"></div>
+      <div class="f-hours"><label>예상 시간(h)</label><input type="number" id="nHours" min="0" step="0.5" placeholder="8"></div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <div class="f-name"><label>메모 (선택)</label><input type="text" id="nNote" placeholder="진행 상황·세부 내용"></div>
+    </div>
+    <button class="addbtn" id="addBtn">업무 추가</button>
+  </div>
+
+  <div id="tasks"></div>
+  <p class="note" id="noteEl"></p>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const store = (() => {
+    let mem = {}, ok = false;
+    try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); ok = true; } catch(e){}
+    return { ok,
+      get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+      set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } } };
+  })();
+
+  let tasks = [];
+  function load(){ try { tasks = JSON.parse(store.get("tasks")) || []; } catch(e){ tasks = []; } }
+  function save(){ store.set("tasks", JSON.stringify(tasks)); }
+  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function dday(deadline){
+    if (!deadline) return null;
+    const d = new Date(deadline + "T00:00:00");
+    const t = new Date(); t.setHours(0,0,0,0);
+    return Math.round((d - t) / 86400000);
+  }
+  function ddText(n){
+    if (n === null) return { txt:"마감 없음", cls:"dd-ok" };
+    if (n < 0) return { txt:(-n)+"일 지남", cls:"dd-near" };
+    if (n === 0) return { txt:"오늘 마감", cls:"dd-near" };
+    if (n <= 2) return { txt:"D-"+n, cls:"dd-near" };
+    if (n <= 5) return { txt:"D-"+n, cls:"dd-soon" };
+    return { txt:"D-"+n, cls:"dd-ok" };
+  }
+
+  function render(){
+    const wrap = $("tasks"); wrap.innerHTML = "";
+    if (!tasks.length){
+      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가해 보세요.</div>';
+      $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
+      return;
+    }
+    const sorted = tasks.slice().sort((a,b)=>{
+      const da = a.deadline ? dday(a.deadline) : 9999;
+      const db = b.deadline ? dday(b.deadline) : 9999;
+      return da - db;
+    });
+    sorted.forEach(t=>{
+      const i = tasks.indexOf(t);
+      const total = Number(t.totalHours)||0, done = Number(t.doneHours)||0;
+      const pct = total > 0 ? Math.min(100, Math.round(done/total*100)) : 0;
+      const remain = Math.max(0, total - done);
+      const dn = dday(t.deadline);
+      const dd = ddText(dn);
+
+      const card = document.createElement("div"); card.className = "task" + (dn!==null && dn<0 ? " overdue" : "");
+      const head = document.createElement("div"); head.className = "t-head";
+      head.innerHTML = '<span class="t-name">'+esc(t.name)+'</span><span class="t-dday '+dd.cls+'">'+dd.txt+'</span>';
+      const del = document.createElement("span"); del.className = "t-del"; del.textContent = "삭제";
+      let armed = false;
+      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { tasks.splice(i,1); save(); render(); } };
+      head.appendChild(del);
+      card.appendChild(head);
+
+      const bar = document.createElement("div"); bar.className="bar";
+      const fill = document.createElement("div"); fill.className="bar-fill"+(pct>=100?" done":""); fill.style.width=pct+"%";
+      bar.appendChild(fill); card.appendChild(bar);
+
+      const meta = document.createElement("div"); meta.className="t-meta";
+      meta.textContent = "진행 "+pct+"% · 예상 "+total+"h · 완료 "+done+"h · 남음 "+remain+"h";
+      card.appendChild(meta);
+
+      if (t.note){ const note=document.createElement("div"); note.className="t-note"; note.textContent=t.note; card.appendChild(note); }
+
+      const prog = document.createElement("div"); prog.className="t-prog";
+      const inp = document.createElement("input"); inp.type="number"; inp.min="0"; inp.step="0.5"; inp.placeholder="시간";
+      const addH = document.createElement("button"); addH.textContent="완료 시간 추가";
+      addH.onclick = ()=>{ const h=Number(inp.value); if(h>0){ t.doneHours=(Number(t.doneHours)||0)+h; save(); render(); } };
+      const doneBtn = document.createElement("button"); doneBtn.className="donebtn"; doneBtn.textContent="완료 처리";
+      doneBtn.onclick = ()=>{ t.doneHours=total; save(); render(); };
+      prog.appendChild(inp); prog.appendChild(addH); prog.appendChild(doneBtn);
+      card.appendChild(prog);
+
+      wrap.appendChild(card);
+    });
+    $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
+  }
+
+  function addTask(){
+    const name = $("nName").value.trim();
+    if (!name){ $("nName").focus(); return; }
+    tasks.push({
+      name,
+      deadline: $("nDate").value || "",
+      totalHours: Number($("nHours").value) || 0,
+      doneHours: 0,
+      note: $("nNote").value.trim()
+    });
+    save();
+    $("nName").value=""; $("nDate").value=""; $("nHours").value=""; $("nNote").value="";
+    render();
+  }
+  $("addBtn").addEventListener("click", addTask);
+  $("nName").addEventListener("keydown", (e)=>{ if(e.key==="Enter") addTask(); });
+
+  load(); render();
+</script>
+</body>
+</html>
