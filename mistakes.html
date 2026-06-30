@@ -1,4 +1,4 @@
-<!-- mistakes v6 -->
+<!-- mistakes v7 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -37,6 +37,9 @@
   .modal .mlist li { background: var(--bg); }
   .m-top { display: flex; gap: 8px; align-items: center; }
   .m-top .mtxt { flex: 1; font-size: 14px; color: var(--ink); }
+  .m-top .mtxt.clickable { cursor: pointer; }
+  .m-top .mtxt.clickable:hover { color: var(--accent); text-decoration: underline; }
+  .date-chip { font-size: 12px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
   .m-count { font-size: 12px; font-weight: 600; padding: 1px 9px; border-radius: 10px; flex-shrink: 0; white-space: nowrap; }
   .m-count.c1 { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
   .m-count.c2 { background: #fdf0d8; color: #b5790c; }
@@ -46,8 +49,6 @@
   .m-top .mdel.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
   .m-dates { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center; }
   .m-dates .lab { font-size: 12px; color: var(--muted); }
-  .date-chip { font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; text-decoration: none; cursor: pointer; }
-  .date-chip:hover { background: #d7e0fb; }
   .m-nodate { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .none { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
   .more-btn { width: 100%; border: 1px dashed var(--line); background: var(--card); color: var(--accent); border-radius: 8px; padding: 8px; font-size: 13px; cursor: pointer; margin-bottom: 12px; }
@@ -183,7 +184,9 @@
     const cnt = item.count||1;
     const li = document.createElement("li");
     const top = document.createElement("div"); top.className="m-top";
-    const span = document.createElement("span"); span.className="mtxt"; span.textContent=item.text;
+    const span = document.createElement("span"); span.className="mtxt clickable"; span.textContent=item.text;
+    span.title = "클릭하면 이 실수가 난 모든 날짜를 캘린더에 표시합니다";
+    span.onclick = ()=>{ const ds = uniqDates(item); if(ds.length) location.href = "index.html?dates=" + ds.join(","); };
     const badge = document.createElement("span"); badge.className="m-count "+(cnt>=3?"c3":cnt===2?"c2":"c1"); badge.textContent=cnt+"회";
     const del = document.createElement("span"); del.className="mdel"; del.textContent="삭제";
     let armed = false;
@@ -196,7 +199,7 @@
       const dwrap = document.createElement("div"); dwrap.className="m-dates";
       const lab = document.createElement("span"); lab.className="lab"; lab.textContent="발생 날짜:"; dwrap.appendChild(lab);
       u.slice().reverse().slice(0,6).forEach(d=>{
-        const chip = document.createElement("a"); chip.className="date-chip"; chip.href="index.html?date="+d; chip.textContent=fmtD(d);
+        const chip = document.createElement("span"); chip.className="date-chip"; chip.textContent=fmtD(d);
         dwrap.appendChild(chip);
       });
       if (u.length>6){ const more=document.createElement("span"); more.className="lab"; more.textContent="외 "+(u.length-6)+"일"; dwrap.appendChild(more); }
