@@ -1,276 +1,471 @@
 <!-- progress v4 -->
-import os
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from google import genai
-from google.genai import types
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>진행 상황</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd; --danger: #d6453e; --warn: #b5790c; --ok: #2e9e5b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; padding: 20px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-link { font-size: 13px; color: var(--accent); text-decoration: none; }
+  .page-link:hover { text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
 
-# 우리 사이트 주소에서의 호출만 허용 (저장소명이 달라도 도메인만 맞으면 됩니다)
-ALLOWED_ORIGINS = [
-    "https://hodoingnaruhodo.github.io",
-]
+  .new { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; }
+  .new .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .new label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  .new input { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 14px; font-family: inherit; width: 100%; }
+  .new input:focus { outline: none; border-color: var(--accent); }
+  .f-name { flex: 1; min-width: 160px; }
+  .f-date { width: 150px; }
+  .new .addbtn { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; margin-top: 10px; }
 
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 20px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sec-title:first-of-type { margin-top: 4px; }
 
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+  .task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .task.overdue { border-color: #f3c4c1; }
+  .task.complete { background: #fbfdfb; }
+  .t-head { display: flex; align-items: center; gap: 8px; }
+  .t-toggle { font-size: 11px; color: var(--muted); cursor: pointer; width: 12px; flex-shrink: 0; }
+  .t-name { font-size: 15px; font-weight: 600; cursor: pointer; }
+  .t-dday { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+  .dd-near { background: #fdeceb; color: var(--danger); }
+  .dd-soon { background: #fdf0d8; color: var(--warn); }
+  .dd-ok { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+  .dd-done { background: #e7f6ee; color: var(--ok); }
+  .t-acts { margin-left: auto; display: flex; gap: 8px; }
+  .t-edit, .t-del { color: var(--muted); font-size: 12px; cursor: pointer; }
+  .t-del { color: #a55; }
+  .t-del.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
+  .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+  .bar-fill.done { background: var(--ok); }
+  .t-meta { font-size: 13px; color: var(--muted); }
+  .t-note { font-size: 13px; color: var(--ink); margin-top: 6px; white-space: pre-wrap; }
 
-SYSTEM_ADVICE = (
-    "당신은 사용자의 업무 일정과 과거 실수 기록을 참고해 오늘 주의할 점을 조언하는 비서입니다. "
-    "일정 자체를 바꾸자고 제안하지 말고, 각 업무에서 과거에 반복된 실수를 토대로 오늘 무엇을 조심할지 "
-    "간결한 한국어로 정리하세요. 과장 없이 실용적으로, 항목별로 짧게 적습니다."
-)
+  .t-edit-form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+  .t-edit-form .r { display: flex; gap: 6px; flex-wrap: wrap; }
+  .t-edit-form input { border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; font-size: 14px; font-family: inherit; }
+  .t-edit-form .ti-name { flex: 1; min-width: 150px; }
+  .t-edit-form .ti-date { width: 150px; }
+  .t-edit-form .ti-note { width: 100%; }
+  .t-edit-form .btns { display: flex; gap: 6px; }
+  .t-edit-form button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 7px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .t-edit-form button.cancel { background: var(--card); color: var(--muted); border-color: var(--line); }
 
-SYSTEM_CHAT = (
-    "당신은 사용자의 하루 업무 회고를 돕는 대화형 비서입니다. "
-    "사용자가 오늘 한 업무와 실수, 아쉬운 점을 함께 짚어보며 구체적이고 실용적인 한국어 조언을 합니다. "
-    "공감하되 과장 없이, 다음에 개선할 점을 명확하게 제시하세요. 답변은 간결하게 유지합니다."
-)
+  .steps { list-style: none; margin: 12px 0 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .step { padding: 7px 0; border-bottom: 1px solid #f0efe9; }
+  .step:last-child { border-bottom: none; }
+  .step-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .step-mark { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; }
+  .step-mark.on { background: var(--ok); border-color: var(--ok); }
+  .step-name { font-size: 14px; }
+  .step.done .step-name { color: var(--muted); }
+  .step-est { font-size: 12px; color: var(--muted); }
+  .step-est .over { color: var(--danger); }
+  .step-est .under { color: var(--ok); }
+  .step-acts { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+  .step-btn { font-size: 12px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .step-btn.minor { border-color: var(--line); color: var(--muted); }
+  .step-x { color: #b99; font-size: 12px; cursor: pointer; }
+  .step-fb { font-size: 12px; color: var(--muted); margin-top: 3px; padding-left: 24px; font-style: italic; }
+  .step-edit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; padding-left: 24px; }
+  .step-edit input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  .step-edit .e-h { width: 72px; }
+  .step-edit .e-name { flex: 1; min-width: 130px; }
+  .step-edit .e-fb { flex: 1; min-width: 140px; }
+  .step-edit button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .step-edit button.cancel { background: var(--card); color: var(--muted); border-color: var(--line); }
 
-SYSTEM_RECOMMEND = (
-    "당신은 사용자의 오늘 빈 시간에 업무를 배치해 주는 일정 비서입니다. "
-    "고정 일정(이미 정해진 약속)은 절대 바꾸거나 옮기지 마세요. 주어진 빈 시간대 안에서만 업무를 추천합니다. "
-    "마감이 임박하고 남은 작업이 많은 업무를 우선하고, 완료한 업무의 예상 대비 실제 소요 시간과 피드백을 참고해 "
-    "현실적으로 시간을 배분하세요. '몇 시~몇 시에 어떤 업무(가능하면 어떤 단계)를 하라'고 구체적으로, "
-    "왜 그 순서인지 한 줄 이유를 덧붙여 간결한 한국어로 추천합니다."
-)
+  .add-step { display: flex; gap: 6px; margin-top: 8px; padding-top: 4px; }
+  .add-step input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  .add-step .s-name { flex: 1; }
+  .add-step .s-h { width: 90px; }
+  .add-step button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
 
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+  .sec-empty { color: var(--muted); font-size: 13px; padding: 6px 2px 10px; }
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 
-class AdviceRequest(BaseModel):
-    schedule: list = []
-    mistakes: dict = {}
+  .rec-trigger { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-bottom: 18px; width: 100%; }
+  .rec-trigger:hover { background: #2f4cc0; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .overlay.open { display: flex; }
+  .rec-modal { background: var(--card); border-radius: 14px; width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+  .rec-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  .rec-head .t { font-size: 16px; font-weight: 600; }
+  .rec-close { border: none; background: none; font-size: 24px; color: var(--muted); cursor: pointer; line-height: 1; }
+  .rec-body { padding: 16px 18px; overflow-y: auto; }
+  .rec-slots { background: var(--bg); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+  .rec-slots .lab { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .rec-slots .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rec-slots .chip { font-size: 12px; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 8px; }
+  .rec-loading { text-align: center; color: var(--muted); padding: 36px 12px; font-size: 14px; }
+  .rec-loading span { display: block; font-size: 12px; margin-top: 6px; }
+  .rec-text .ad-line { margin-bottom: 8px; font-size: 14px; line-height: 1.65; }
+  .rec-text .ad-item { margin: 4px 0 4px 6px; font-size: 14px; line-height: 1.6; }
+  .rec-text strong { font-weight: 600; }
+  .rec-error { color: var(--danger); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>진행 상황</h1>
+    <a href="index.html" class="page-link">← 캘린더</a>
+    <a href="feedback.html" class="page-link">하루 회고</a>
+    <a href="mistakes.html" class="page-link">실수 노트</a>
+  </header>
+  <p class="sub">업무를 단계로 나눠 진행 상황과 완료 피드백을 기록합니다. 업무 제목을 누르면 단계가 펼쳐집니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
 
+  <button id="recBtn" class="rec-trigger">오늘 일정 추천 받기</button>
 
-class ChatRequest(BaseModel):
-    messages: list = []      # [{role:"user"/"assistant", content:"..."}]
-    context: dict = {}       # {schedule, notes, mistakes}
+  <div class="new">
+    <div class="row">
+      <div class="f-name"><label>업무 이름</label><input type="text" id="nName" placeholder="예: 분기 보고서"></div>
+      <div class="f-date"><label>마감일</label><input type="date" id="nDate"></div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <div class="f-name"><label>메모 (선택)</label><input type="text" id="nNote" placeholder="세부 내용"></div>
+    </div>
+    <button class="addbtn" id="addBtn">업무 추가</button>
+  </div>
 
+  <div id="tasks"></div>
+  <p class="note" id="noteEl"></p>
+</div>
 
-class RecommendRequest(BaseModel):
-    work_start: str = "08:30"
-    work_end: str = "17:30"
-    today: str = ""
-    fixed: list = []         # 오늘 고정 일정 [{time, endTime, title}]
-    tasks: list = []         # 진행 중 업무 [{name, deadline, steps:[...]}]
-    done: list = []          # 완료 업무 [{name, steps:[{name, estHours, actualHours, feedback}]}]
+<div class="overlay" id="recOverlay">
+  <div class="rec-modal">
+    <div class="rec-head">
+      <span class="t">오늘 일정 추천</span>
+      <button class="rec-close" id="recClose" aria-label="닫기">&times;</button>
+    </div>
+    <div class="rec-body" id="recBody"></div>
+  </div>
+</div>
 
+<script>
+  const $ = (id) => document.getElementById(id);
+  const BACKEND = "https://myschedulerhelper-backend.onrender.com";
+  const WORK_START = "08:30", WORK_END = "17:30";
+  const store = (() => {
+    let mem = {}, ok = false;
+    try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); ok = true; } catch(e){}
+    return { ok,
+      get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+      set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } } };
+  })();
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+  let tasks = [];
+  let editing = null;      // null | {type:"taskInfo",id} | {type:"stepInfo",id,si} | {type:"stepDone",id,si}
+  let openIds = new Set();
+  let jsonEvents = [], myEvents = [];
 
+  function todayKey(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function loadEvents(){ try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; } }
+  async function loadSchedule(){ try { const r = await fetch("schedule.json", {cache:"no-store"}); if(r.ok){ const d = await r.json(); jsonEvents = d.events || []; } } catch(e){ jsonEvents = []; } }
 
-@app.post("/advice")
-def advice(req: AdviceRequest):
-    if not os.environ.get("GEMINI_API_KEY"):
-        raise HTTPException(status_code=500, detail="API 키가 설정되지 않았습니다.")
+  function uid(){ return "t" + Date.now() + Math.random().toString(36).slice(2,7); }
+  function migrate(list){
+    return list.map(t=>{
+      let nt;
+      if (t.steps) nt = t;
+      else {
+        const steps = [];
+        if (t.totalHours){
+          steps.push({ name:"전체 작업", estHours:Number(t.totalHours)||0, done:(Number(t.doneHours)||0) >= (Number(t.totalHours)||0), actualHours:Number(t.doneHours)||0, feedback:"" });
+        }
+        nt = { name:t.name, deadline:t.deadline||"", note:t.note||"", steps };
+      }
+      if (!nt.id) nt.id = uid();
+      return nt;
+    });
+  }
+  function load(){ try { tasks = migrate(JSON.parse(store.get("tasks")) || []); } catch(e){ tasks = []; } save(); }
+  function save(){ store.set("tasks", JSON.stringify(tasks)); }
+  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function taskById(id){ return tasks.find(t=>t.id===id); }
 
-    lines = ["[오늘 일정]"]
-    if req.schedule:
-        for e in req.schedule:
-            t = e.get("time", "")
-            cat = e.get("taskType", "")
-            title = e.get("title", "")
-            lines.append(f"- {t} {title}" + (f" (카테고리: {cat})" if cat else ""))
-    else:
-        lines.append("- 등록된 일정 없음")
+  function dday(deadline){
+    if (!deadline) return null;
+    const d = new Date(deadline + "T00:00:00");
+    const t = new Date(); t.setHours(0,0,0,0);
+    return Math.round((d - t) / 86400000);
+  }
+  function ddText(n){
+    if (n === null) return { txt:"마감 없음", cls:"dd-ok" };
+    if (n < 0) return { txt:(-n)+"일 지남", cls:"dd-near" };
+    if (n === 0) return { txt:"오늘 마감", cls:"dd-near" };
+    if (n <= 2) return { txt:"D-"+n, cls:"dd-near" };
+    if (n <= 5) return { txt:"D-"+n, cls:"dd-soon" };
+    return { txt:"D-"+n, cls:"dd-ok" };
+  }
+  function isDone(t){ return t.steps.length>0 && t.steps.every(s=>s.done); }
 
-    lines.append("\n[과거 실수 기록 (카테고리별)]")
-    if req.mistakes:
-        for cat, items in req.mistakes.items():
-            for m in items:
-                lines.append(f"- {cat}: {m.get('text','')} (총 {m.get('count',1)}회)")
-    else:
-        lines.append("- 기록 없음")
+  function stepEl(t, s, si){
+    const li = document.createElement("li"); li.className = "step" + (s.done?" done":"");
+    const editType = editing && editing.id===t.id && editing.si===si ? editing.type : null;
 
-    user_prompt = "\n".join(lines) + "\n\n위 정보를 참고해 오늘 각 업무에서 조심할 점을 조언해 주세요."
+    if (editType === "stepInfo"){
+      const ed = document.createElement("div"); ed.className="step-edit";
+      const nm = document.createElement("input"); nm.className="e-name"; nm.type="text"; nm.placeholder="단계 이름"; nm.value=s.name||"";
+      const h = document.createElement("input"); h.className="e-h"; h.type="number"; h.min="0"; h.step="0.5"; h.placeholder="예상 h"; h.value=s.estHours||"";
+      const ok = document.createElement("button"); ok.textContent="저장";
+      ok.onclick = ()=>{ const v=nm.value.trim(); if(!v) return; s.name=v; s.estHours=Number(h.value)||0; editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      ed.appendChild(nm); ed.appendChild(h); ed.appendChild(ok); ed.appendChild(c);
+      li.appendChild(ed);
+      setTimeout(()=>nm.focus(),0);
+      return li;
+    }
+    if (editType === "stepDone"){
+      const row = document.createElement("div"); row.className="step-row";
+      row.innerHTML = '<span class="step-mark'+(s.done?" on":"")+'"></span><span class="step-name">'+esc(s.name)+'</span>';
+      li.appendChild(row);
+      const ed = document.createElement("div"); ed.className="step-edit";
+      const h = document.createElement("input"); h.className="e-h"; h.type="number"; h.min="0"; h.step="0.5"; h.placeholder="실제 h"; h.value = s.done ? (s.actualHours||"") : (s.estHours||"");
+      const fb = document.createElement("input"); fb.className="e-fb"; fb.type="text"; fb.placeholder="이 단계는 어땠나요? (예: 예상보다 오래 걸림)"; fb.value = s.feedback||"";
+      const ok = document.createElement("button"); ok.textContent="완료 저장";
+      ok.onclick = ()=>{ s.done=true; s.actualHours=Number(h.value)||0; s.feedback=fb.value.trim(); editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      ed.appendChild(h); ed.appendChild(fb); ed.appendChild(ok); ed.appendChild(c);
+      li.appendChild(ed);
+      setTimeout(()=>fb.focus(),0);
+      return li;
+    }
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=user_prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_ADVICE,
-                max_output_tokens=2048,
-            ),
-        )
-        return {"advice": response.text}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI 호출 실패: {e}")
+    const row = document.createElement("div"); row.className="step-row";
+    const mark = document.createElement("span"); mark.className="step-mark"+(s.done?" on":"");
+    const name = document.createElement("span"); name.className="step-name"; name.textContent=s.name;
+    const est = document.createElement("span"); est.className="step-est";
+    if (s.done){
+      const diff = (Number(s.actualHours)||0) - (Number(s.estHours)||0);
+      est.innerHTML = " 예상 "+s.estHours+"h → 실제 "+s.actualHours+"h" + (diff>0?' <span class="over">(+'+diff+'h)</span>':(diff<0?' <span class="under">('+diff+'h)</span>':''));
+    } else {
+      est.textContent = " 예상 "+s.estHours+"h";
+    }
+    row.appendChild(mark); row.appendChild(name); row.appendChild(est);
 
+    const acts = document.createElement("div"); acts.className="step-acts";
+    if (!s.done){
+      const done = document.createElement("button"); done.className="step-btn"; done.textContent="완료";
+      done.onclick = ()=>{ editing={type:"stepDone",id:t.id,si}; render(); };
+      const edit = document.createElement("button"); edit.className="step-btn minor"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"stepInfo",id:t.id,si}; render(); };
+      acts.appendChild(done); acts.appendChild(edit);
+    } else {
+      const edit = document.createElement("button"); edit.className="step-btn"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"stepDone",id:t.id,si}; render(); };
+      const undo = document.createElement("button"); undo.className="step-btn minor"; undo.textContent="되돌리기";
+      undo.onclick = ()=>{ s.done=false; save(); render(); };
+      acts.appendChild(edit); acts.appendChild(undo);
+    }
+    const x = document.createElement("span"); x.className="step-x"; x.textContent="✕"; x.title="단계 삭제";
+    x.onclick = ()=>{ t.steps.splice(si,1); save(); render(); };
+    acts.appendChild(x);
+    row.appendChild(acts);
+    li.appendChild(row);
 
-def build_context(context):
-    lines = []
-    sched = context.get("schedule", [])
-    if sched:
-        lines.append("[오늘 일정]")
-        for e in sched:
-            t = e.get("time", "")
-            title = e.get("title", "")
-            cat = e.get("taskType", "")
-            lines.append(f"- {t} {title}" + (f" (카테고리: {cat})" if cat else ""))
-    notes = context.get("notes", {})
-    if notes:
-        lines.append("\n[오늘 회고 메모]")
-        for title, note in notes.items():
-            if note:
-                lines.append(f"- {title}: {note}")
-    mistakes = context.get("mistakes", {})
-    if mistakes:
-        lines.append("\n[과거 실수]")
-        for cat, items in mistakes.items():
-            for m in items:
-                lines.append(f"- {cat}: {m.get('text','')} ({m.get('count',1)}회)")
-    return "\n".join(lines)
+    if (s.done && s.feedback){
+      const fb = document.createElement("div"); fb.className="step-fb"; fb.textContent = "“"+s.feedback+"”";
+      li.appendChild(fb);
+    }
+    return li;
+  }
 
+  function taskCard(t){
+    const steps = t.steps || [];
+    const total = steps.length;
+    const doneCount = steps.filter(s=>s.done).length;
+    const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
+    const estSum = steps.reduce((a,s)=>a+(Number(s.estHours)||0),0);
+    const actSum = steps.filter(s=>s.done).reduce((a,s)=>a+(Number(s.actualHours)||0),0);
+    const complete = isDone(t);
+    const dn = dday(t.deadline);
+    const dd = complete ? { txt:"완료", cls:"dd-done" } : ddText(dn);
+    const open = openIds.has(t.id);
 
-@app.post("/chat")
-def chat(req: ChatRequest):
-    if not os.environ.get("GEMINI_API_KEY"):
-        raise HTTPException(status_code=500, detail="API 키가 설정되지 않았습니다.")
+    const card = document.createElement("div"); card.className = "task" + (complete?" complete":(dn!==null&&dn<0?" overdue":""));
 
-    ctx = build_context(req.context)
-    system = SYSTEM_CHAT + (("\n\n참고 정보:\n" + ctx) if ctx else "")
+    if (editing && editing.type==="taskInfo" && editing.id===t.id){
+      const f = document.createElement("div"); f.className="t-edit-form";
+      const r1 = document.createElement("div"); r1.className="r";
+      const nm = document.createElement("input"); nm.className="ti-name"; nm.type="text"; nm.placeholder="업무 이름"; nm.value=t.name||"";
+      const dt = document.createElement("input"); dt.className="ti-date"; dt.type="date"; dt.value=t.deadline||"";
+      r1.appendChild(nm); r1.appendChild(dt);
+      const note = document.createElement("input"); note.className="ti-note"; note.type="text"; note.placeholder="메모 (선택)"; note.value=t.note||"";
+      const btns = document.createElement("div"); btns.className="btns";
+      const ok = document.createElement("button"); ok.textContent="저장";
+      ok.onclick = ()=>{ const v=nm.value.trim(); if(!v) return; t.name=v; t.deadline=dt.value||""; t.note=note.value.trim(); editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      btns.appendChild(ok); btns.appendChild(c);
+      f.appendChild(r1); f.appendChild(note); f.appendChild(btns);
+      card.appendChild(f);
+    } else {
+      const head = document.createElement("div"); head.className="t-head";
+      const tog = document.createElement("span"); tog.className="t-toggle"; tog.textContent = open ? "▼" : "▶";
+      const name = document.createElement("span"); name.className="t-name"; name.textContent = t.name;
+      const toggle = ()=>{ if(open) openIds.delete(t.id); else openIds.add(t.id); render(); };
+      tog.onclick = toggle; name.onclick = toggle;
+      const ddEl = document.createElement("span"); ddEl.className="t-dday "+dd.cls; ddEl.textContent=dd.txt;
+      head.appendChild(tog); head.appendChild(name); head.appendChild(ddEl);
+      const acts = document.createElement("div"); acts.className="t-acts";
+      const edit = document.createElement("span"); edit.className="t-edit"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"taskInfo",id:t.id}; render(); };
+      const del = document.createElement("span"); del.className="t-del"; del.textContent="삭제";
+      let armed=false;
+      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { const i=tasks.findIndex(x=>x.id===t.id); if(i>=0)tasks.splice(i,1); save(); render(); } };
+      acts.appendChild(edit); acts.appendChild(del);
+      head.appendChild(acts);
+      card.appendChild(head);
+    }
 
-    contents = []
-    for m in req.messages:
-        role = "user" if m.get("role") == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part(text=m.get("content", ""))]))
-    if not contents:
-        contents = [types.Content(role="user", parts=[types.Part(text="오늘 하루를 함께 돌아보고 싶어요.")])]
+    const bar = document.createElement("div"); bar.className="bar";
+    const fill = document.createElement("div"); fill.className="bar-fill"+(complete?" done":""); fill.style.width=pct+"%";
+    bar.appendChild(fill); card.appendChild(bar);
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                max_output_tokens=2048,
-            ),
-        )
-        return {"reply": response.text}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI 호출 실패: {e}")
+    const meta = document.createElement("div"); meta.className="t-meta";
+    meta.textContent = total>0
+      ? ("단계 "+doneCount+"/"+total+" 완료 ("+pct+"%) · 예상 합 "+estSum+"h · 실제 "+actSum+"h")
+      : "아직 단계가 없습니다. 펼쳐서 단계를 추가하세요.";
+    card.appendChild(meta);
 
+    if (t.note){ const note=document.createElement("div"); note.className="t-note"; note.textContent=t.note; card.appendChild(note); }
 
-def _to_min(hhmm):
-    try:
-        h, m = hhmm.split(":")
-        return int(h) * 60 + int(m)
-    except Exception:
-        return None
+    if (open){
+      if (total>0){
+        const ul = document.createElement("ul"); ul.className="steps";
+        steps.forEach((s, si)=> ul.appendChild(stepEl(t, s, si)));
+        card.appendChild(ul);
+      }
+      const as = document.createElement("div"); as.className="add-step";
+      const sn = document.createElement("input"); sn.className="s-name"; sn.type="text"; sn.placeholder="단계 추가 (예: 자료 수집)";
+      const sh = document.createElement("input"); sh.className="s-h"; sh.type="number"; sh.min="0"; sh.step="0.5"; sh.placeholder="예상 h";
+      const sb = document.createElement("button"); sb.textContent="추가";
+      const addStep = ()=>{ const nm=sn.value.trim(); if(!nm) return; t.steps.push({ name:nm, estHours:Number(sh.value)||0, done:false, actualHours:0, feedback:"" }); save(); render(); };
+      sb.onclick = addStep;
+      sn.addEventListener("keydown",(e)=>{ if(e.key==="Enter") addStep(); });
+      as.appendChild(sn); as.appendChild(sh); as.appendChild(sb);
+      card.appendChild(as);
+    }
+    return card;
+  }
 
+  function render(){
+    const wrap = $("tasks"); wrap.innerHTML = "";
+    if (!tasks.length){
+      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가하고, 단계를 나눠 보세요.</div>';
+      $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
+      return;
+    }
+    const active = tasks.filter(t=>!isDone(t)).sort((a,b)=>{
+      const da = a.deadline ? dday(a.deadline) : 9999;
+      const db = b.deadline ? dday(b.deadline) : 9999;
+      return da - db;
+    });
+    const done = tasks.filter(t=>isDone(t));
 
-def _to_hhmm(mins):
-    return f"{mins // 60:02d}:{mins % 60:02d}"
+    const at = document.createElement("div"); at.className="sec-title"; at.textContent = "진행 중 ("+active.length+")";
+    wrap.appendChild(at);
+    if (active.length){ active.forEach(t=> wrap.appendChild(taskCard(t))); }
+    else { const e=document.createElement("div"); e.className="sec-empty"; e.textContent="진행 중인 업무가 없습니다."; wrap.appendChild(e); }
 
+    const dt = document.createElement("div"); dt.className="sec-title"; dt.textContent = "완료 ("+done.length+")";
+    wrap.appendChild(dt);
+    if (done.length){ done.forEach(t=> wrap.appendChild(taskCard(t))); }
+    else { const e=document.createElement("div"); e.className="sec-empty"; e.textContent="완료한 업무가 여기에 모입니다."; wrap.appendChild(e); }
 
-def compute_free_slots(work_start, work_end, fixed):
-    ws, we = _to_min(work_start), _to_min(work_end)
-    if ws is None or we is None or ws >= we:
-        return []
-    busy = []
-    for e in fixed:
-        s = _to_min(e.get("time", ""))
-        if s is None:
-            continue
-        en = _to_min(e.get("endTime", "")) if e.get("endTime") else s + 60
-        if en is None:
-            en = s + 60
-        s2, en2 = max(s, ws), min(en, we)
-        if s2 < en2:
-            busy.append((s2, en2))
-    busy.sort()
-    slots, cur = [], ws
-    for s, en in busy:
-        if s > cur:
-            slots.append((cur, s))
-        cur = max(cur, en)
-    if cur < we:
-        slots.append((cur, we))
-    return [{"start": _to_hhmm(a), "end": _to_hhmm(b), "minutes": b - a} for a, b in slots]
+    $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
+  }
 
+  function addTask(){
+    const name = $("nName").value.trim();
+    if (!name){ $("nName").focus(); return; }
+    const t = { id:uid(), name, deadline: $("nDate").value || "", note: $("nNote").value.trim(), steps: [] };
+    tasks.push(t); openIds.add(t.id); save();
+    $("nName").value=""; $("nDate").value=""; $("nNote").value="";
+    render();
+  }
+  $("addBtn").addEventListener("click", addTask);
+  $("nName").addEventListener("keydown", (e)=>{ if(e.key==="Enter") addTask(); });
 
-def _dday(today, deadline):
-    try:
-        from datetime import date
-        y, m, d = map(int, today.split("-"))
-        y2, m2, d2 = map(int, deadline.split("-"))
-        return (date(y2, m2, d2) - date(y, m, d)).days
-    except Exception:
-        return None
+  function renderText(container, text){
+    container.innerHTML = "";
+    const esc = (s)=> s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const bold = (s)=> esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    text.split(/\r?\n/).forEach(raw=>{
+      const line = raw.trim();
+      if (!line) return;
+      const m = line.match(/^[\*\-]\s+(.*)$/);
+      const div = document.createElement("div");
+      if (m){ div.className = "ad-item"; div.innerHTML = "• " + bold(m[1]); }
+      else { div.className = "ad-line"; div.innerHTML = bold(line); }
+      container.appendChild(div);
+    });
+  }
 
+  async function getRecommend(){
+    $("recOverlay").classList.add("open");
+    const body = $("recBody");
+    body.innerHTML = '<div class="rec-loading">오늘 일정을 분석해 추천을 준비 중입니다…<span>서버를 깨우는 중이면 30초~1분 걸릴 수 있어요.</span></div>';
 
-@app.post("/recommend")
-def recommend(req: RecommendRequest):
-    if not os.environ.get("GEMINI_API_KEY"):
-        raise HTTPException(status_code=500, detail="API 키가 설정되지 않았습니다.")
+    const today = todayKey();
+    const fixed = jsonEvents.concat(myEvents)
+      .filter(e=>e.date===today)
+      .map(e=>({ time:e.time||"", endTime:e.endTime||"", title:e.title||"" }));
+    const active = tasks.filter(t=>!isDone(t)).map(t=>({
+      name:t.name, deadline:t.deadline||"",
+      steps:(t.steps||[]).map(s=>({ name:s.name, estHours:s.estHours, done:!!s.done }))
+    }));
+    const done = tasks.filter(t=>isDone(t)).map(t=>({
+      name:t.name,
+      steps:(t.steps||[]).map(s=>({ name:s.name, estHours:s.estHours, actualHours:s.actualHours, feedback:s.feedback||"" }))
+    }));
 
-    slots = compute_free_slots(req.work_start, req.work_end, req.fixed)
+    try {
+      const res = await fetch(BACKEND + "/recommend", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ work_start:WORK_START, work_end:WORK_END, today, fixed, tasks:active, done })
+      });
+      if (!res.ok) throw new Error("서버 응답 " + res.status);
+      const data = await res.json();
+      body.innerHTML = "";
+      const slots = data.free_slots || [];
+      const sw = document.createElement("div"); sw.className="rec-slots";
+      const lab = document.createElement("span"); lab.className="lab"; lab.textContent = "오늘 빈 시간 ("+WORK_START+"~"+WORK_END+" 기준)";
+      sw.appendChild(lab);
+      const chips = document.createElement("div"); chips.className="chips";
+      if (slots.length){
+        slots.forEach(s=>{ const c=document.createElement("span"); c.className="chip"; c.textContent=s.start+"~"+s.end; chips.appendChild(c); });
+      } else { const c=document.createElement("span"); c.className="chip"; c.textContent="빈 시간이 없습니다"; chips.appendChild(c); }
+      sw.appendChild(chips); body.appendChild(sw);
+      const txt = document.createElement("div"); txt.className="rec-text";
+      renderText(txt, data.recommendation || "추천을 받지 못했습니다.");
+      body.appendChild(txt);
+    } catch(e){
+      body.innerHTML = '<div class="rec-error">추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.<br>(' + e.message + ')</div>';
+    }
+  }
+  $("recBtn").addEventListener("click", getRecommend);
+  $("recClose").addEventListener("click", ()=> $("recOverlay").classList.remove("open"));
+  $("recOverlay").addEventListener("click", (e)=>{ if(e.target===$("recOverlay")) $("recOverlay").classList.remove("open"); });
 
-    lines = [f"근무시간: {req.work_start} ~ {req.work_end}", f"오늘 날짜: {req.today}"]
-
-    lines.append("\n[고정 일정 — 변경 금지]")
-    if req.fixed:
-        for e in req.fixed:
-            t = e.get("time", "")
-            end = e.get("endTime", "")
-            when = t + ("~" + end if end else "")
-            lines.append(f"- {when} {e.get('title','')}")
-    else:
-        lines.append("- 없음")
-
-    lines.append("\n[오늘 빈 시간대]")
-    if slots:
-        for s in slots:
-            lines.append(f"- {s['start']}~{s['end']} ({s['minutes']}분)")
-    else:
-        lines.append("- 빈 시간이 없습니다.")
-
-    lines.append("\n[진행 중 업무]")
-    if req.tasks:
-        for t in req.tasks:
-            dd = _dday(req.today, t.get("deadline", ""))
-            ddtxt = (f"D-{dd}" if dd and dd > 0 else ("오늘 마감" if dd == 0 else (f"{-dd}일 지남" if dd is not None else "마감 없음")))
-            steps = t.get("steps", [])
-            remain = [s for s in steps if not s.get("done")]
-            remain_h = sum(float(s.get("estHours", 0) or 0) for s in remain)
-            lines.append(f"- {t.get('name','')} ({ddtxt}) · 남은 단계 {len(remain)}개 · 남은 예상 {remain_h}h")
-            for s in remain:
-                lines.append(f"    · {s.get('name','')} (예상 {s.get('estHours',0)}h)")
-    else:
-        lines.append("- 없음")
-
-    lines.append("\n[완료 업무 피드백 — 시간 배분 참고]")
-    if req.done:
-        for t in req.done:
-            for s in t.get("steps", []):
-                est = s.get("estHours", 0)
-                act = s.get("actualHours", 0)
-                fb = s.get("feedback", "")
-                note = f" / {fb}" if fb else ""
-                lines.append(f"- [{t.get('name','')}] {s.get('name','')}: 예상 {est}h → 실제 {act}h{note}")
-    else:
-        lines.append("- 없음")
-
-    prompt = "\n".join(lines) + "\n\n위 정보를 바탕으로, 고정 일정은 그대로 두고 빈 시간대에 어떤 업무를 언제 하면 좋을지 추천해 주세요."
-
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_RECOMMEND,
-                max_output_tokens=2048,
-            ),
-        )
-        return {"recommendation": response.text, "free_slots": slots}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"AI 호출 실패: {e}")
-
+  function init(){
+    load(); loadEvents(); render();
+    fetch(BACKEND + "/health").catch(()=>{});
+    loadSchedule();
+  }
+  init();
+</script>
+</body>
+</html>
