@@ -92,16 +92,17 @@
   .btn-edit:hover { background: var(--accent-soft); }
   .sel-btns { display: flex; gap: 6px; flex-shrink: 0; }
 
-  .mbox { background: var(--warn-soft); border: 1px solid #f0dcae; border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
-  .mbox .mp-title { font-size: 12px; font-weight: 600; color: var(--warn); margin-bottom: 6px; }
+  .mbox { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-top: 10px; }
+  .mbox .mp-title { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
   .mbox ul { list-style: none; display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-  .mbox li { font-size: 13px; color: #6b4e0c; display: flex; gap: 6px; align-items: start; }
-  .mbox li .mtxt::before { content: "⚠ "; }
-  .mbox li .mdel { margin-left: auto; color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .mbox li { font-size: 13px; color: var(--ink); display: flex; gap: 6px; align-items: center; }
+  .mbox li .mtxt { flex: 1; }
+  .mcount { font-size: 11px; color: var(--muted); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; flex-shrink: 0; }
+  .mbox li .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
   .mbox .none { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
   .mp-add { display: flex; gap: 6px; }
-  .mp-add input { flex: 1; border: 1px solid #f0dcae; border-radius: 6px; padding: 6px 8px; font-size: 13px; }
-  .mp-add button { border: 1px solid var(--warn); background: var(--card); color: var(--warn); border-radius: 6px; padding: 0 12px; font-size: 13px; cursor: pointer; }
+  .mp-add input { flex: 1; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+  .mp-add button { border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 6px; padding: 0 12px; font-size: 13px; cursor: pointer; }
 
   .add-toggle { width: 100%; border: 1px dashed var(--line); background: var(--card); color: var(--accent); padding: 9px; border-radius: 8px; font-size: 14px; cursor: pointer; }
   .add-toggle:hover { background: var(--accent-soft); }
@@ -226,7 +227,8 @@
 
   function loadMy(){ try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; } }
   function saveMy(){ store.set("myEvents", JSON.stringify(myEvents)); }
-  function loadMistakes(){ try { mistakes = JSON.parse(store.get("mistakes")) || {}; } catch(e){ mistakes = {}; } }
+  function migrateMistakes(obj){ const out={}; for(const k in obj){ out[k]=(obj[k]||[]).map(it=> typeof it==="string"?{text:it,count:1,last:null,first:null}:it); } return out; }
+  function loadMistakes(){ try { mistakes = migrateMistakes(JSON.parse(store.get("mistakes")) || {}); } catch(e){ mistakes = {}; } }
   function saveMistakes(){ store.set("mistakes", JSON.stringify(mistakes)); }
 
   function allEvents(){
@@ -373,20 +375,27 @@
     const list = mistakes[type] || [];
     listEl.innerHTML = "";
     noneEl.style.display = list.length ? "none" : "block";
-    list.forEach((txt, i)=>{
+    list.forEach((item, i)=>{
       const li = document.createElement("li");
-      const span = document.createElement("span"); span.className="mtxt"; span.textContent = txt; li.appendChild(span);
+      const span = document.createElement("span"); span.className="mtxt"; span.textContent = item.text; li.appendChild(span);
+      if ((item.count||1) > 1){ const c=document.createElement("span"); c.className="mcount"; c.textContent="×"+item.count; li.appendChild(c); }
       const del = document.createElement("span"); del.className="mdel"; del.textContent="삭제";
       del.onclick = ()=>{ mistakes[type].splice(i,1); if(!mistakes[type].length) delete mistakes[type]; saveMistakes(); renderMistake(scope,type); refreshTypeList(); };
       li.appendChild(del); listEl.appendChild(li);
     });
   }
+  function recordMistake(type, txt){
+    if (!mistakes[type]) mistakes[type] = [];
+    const now = Date.now();
+    const ex = mistakes[type].find(m => m.text === txt);
+    if (ex){ ex.count = (ex.count||1)+1; ex.last = now; }
+    else { mistakes[type].push({ text: txt, count: 1, last: now, first: now }); }
+    saveMistakes();
+  }
   function addMistake(scope, type){
     const inp = $(scope+"MInput"); const txt = inp.value.trim();
-    if (!type){ return; }
-    if (!txt) return;
-    if (!mistakes[type]) mistakes[type] = [];
-    mistakes[type].push(txt); saveMistakes();
+    if (!type || !txt) return;
+    recordMistake(type, txt);
     inp.value = ""; renderMistake(scope, type); refreshTypeList();
   }
 
