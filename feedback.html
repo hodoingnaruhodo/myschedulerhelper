@@ -1,0 +1,247 @@
+<!-- feedback v1 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하루 회고</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --muted: #6b6b66;
+    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd; --danger: #d6453e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; padding: 20px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-link { font-size: 13px; color: var(--accent); text-decoration: none; }
+  .page-link:hover { text-decoration: underline; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+
+  .datebar { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+  .datebar input { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; }
+  .datebar button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+  .datebar button:hover { background: var(--accent-soft); }
+
+  .section-title { font-size: 14px; font-weight: 600; color: var(--muted); margin: 4px 0 10px; }
+
+  .task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+  .task-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .task-time { font-size: 13px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .task-title { font-size: 15px; font-weight: 500; }
+  .task-cat { font-size: 12px; color: var(--muted); margin-left: auto; }
+  .task textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 52px; }
+  .task textarea:focus { outline: none; border-color: var(--accent); }
+  .saved { font-size: 12px; color: #2e9e5b; margin-top: 4px; height: 14px; }
+
+  .no-task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 28px; text-align: center; color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+
+  .chat { background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin-top: 22px; overflow: hidden; }
+  .chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .chat-head .t { font-size: 15px; font-weight: 600; }
+  .chat-head .clear { font-size: 12px; color: var(--muted); border: 1px solid var(--line); background: var(--card); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
+  .chat-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; }
+  .msg { max-width: 85%; padding: 9px 13px; border-radius: 12px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+  .msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.ai { align-self: flex-start; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .msg.loading { align-self: flex-start; color: var(--muted); font-style: italic; }
+  .chat-empty { color: var(--muted); font-size: 13px; text-align: center; padding: 20px 8px; }
+  .chat-input { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+  .chat-input textarea { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; resize: none; min-height: 42px; max-height: 120px; }
+  .chat-input textarea:focus { outline: none; border-color: var(--accent); }
+  .chat-input button { border: none; background: var(--accent); color: #fff; border-radius: 10px; padding: 0 18px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .chat-input button:disabled { opacity: .5; cursor: default; }
+  .quick { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+  .quick button { font-size: 12px; border: 1px solid var(--line); background: var(--card); color: var(--accent); border-radius: 14px; padding: 5px 12px; cursor: pointer; }
+  .quick button:hover { background: var(--accent-soft); }
+
+  .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>하루 회고</h1>
+    <a href="index.html" class="page-link">← 캘린더</a>
+    <a href="mistakes.html" class="page-link">실수 노트</a>
+  </header>
+  <p class="sub">하루 일과를 짚어보며 회고를 적고, AI와 함께 돌아봅니다.</p>
+
+  <div class="datebar">
+    <input type="date" id="dateInput">
+    <button id="todayBtn">오늘</button>
+  </div>
+
+  <div class="section-title" id="taskTitle">오늘의 업무</div>
+  <div id="tasks"></div>
+
+  <div class="chat">
+    <div class="chat-head">
+      <span class="t">AI와 하루 돌아보기</span>
+      <button class="clear" id="chatClear">대화 비우기</button>
+    </div>
+    <div class="chat-body" id="chatBody"></div>
+    <div class="quick" id="quick">
+      <button data-q="오늘 하루를 전체적으로 돌아봐 줘.">하루 총평</button>
+      <button data-q="오늘 가장 아쉬웠던 점은 무엇이고, 어떻게 개선할 수 있을까?">아쉬운 점 짚기</button>
+      <button data-q="오늘 기록한 실수가 반복되지 않으려면 내일 무엇을 해야 할까?">내일 할 일</button>
+    </div>
+    <div class="chat-input">
+      <textarea id="chatText" placeholder="오늘 업무에 대해 물어보거나 이야기해 보세요" rows="1"></textarea>
+      <button id="chatSend">보내기</button>
+    </div>
+  </div>
+
+  <p class="note" id="note"></p>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const BACKEND = "https://myschedulerhelper-backend.onrender.com";
+
+  const store = (() => {
+    let mem = {}, ok = false;
+    try { localStorage.setItem("__t","1"); localStorage.removeItem("__t"); ok = true; } catch(e){}
+    return { ok,
+      get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+      set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } } };
+  })();
+
+  let jsonEvents = [], myEvents = [], mistakes = {}, feedback = {};
+  let curDate = "";
+
+  function ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function todayKey(){ return ymd(new Date()); }
+  function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function loadAll(){
+    try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; }
+    try { mistakes = JSON.parse(store.get("mistakes")) || {}; } catch(e){ mistakes = {}; }
+    try { feedback = JSON.parse(store.get("feedback")) || {}; } catch(e){ feedback = {}; }
+  }
+  function saveFeedback(){ store.set("feedback", JSON.stringify(feedback)); }
+
+  function allEvents(){ return jsonEvents.concat(myEvents); }
+  function eventsOn(key){ return allEvents().filter(e=>e.date===key).sort((a,b)=>(a.time||"").localeCompare(b.time||"")); }
+
+  function dayData(){
+    if (!feedback[curDate]) feedback[curDate] = { notes: {}, chat: [] };
+    return feedback[curDate];
+  }
+
+  function renderTasks(){
+    const evs = eventsOn(curDate);
+    const wrap = $("tasks"); wrap.innerHTML = "";
+    const data = dayData();
+    $("taskTitle").textContent = curDate + " 업무 (" + evs.length + "건)";
+
+    if (!evs.length){
+      wrap.innerHTML = '<div class="no-task">이 날은 등록된 일정이 없습니다. 캘린더에서 일정을 추가한 뒤 회고할 수 있어요.</div>';
+      return;
+    }
+    evs.forEach((e, i)=>{
+      const key = (e.time||"") + "|" + (e.title||"");
+      const card = document.createElement("div"); card.className="task";
+      const head = document.createElement("div"); head.className="task-head";
+      head.innerHTML = '<span class="task-time">'+(e.time||"")+(e.endTime?"~"+e.endTime:"")+'</span>'
+        + '<span class="task-title">'+esc(e.title)+'</span>'
+        + (e.taskType?'<span class="task-cat">'+esc(e.taskType)+'</span>':'');
+      card.appendChild(head);
+
+      const ta = document.createElement("textarea");
+      ta.placeholder = "이 업무는 어땠나요? 실수나 아쉬운 점을 적어보세요";
+      ta.value = data.notes[key] || "";
+      const saved = document.createElement("div"); saved.className="saved";
+      let timer = null;
+      ta.addEventListener("input", ()=>{
+        data.notes[key] = ta.value;
+        saveFeedback();
+        saved.textContent = "저장됨";
+        clearTimeout(timer); timer = setTimeout(()=>{ saved.textContent=""; }, 1200);
+      });
+      card.appendChild(ta); card.appendChild(saved);
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderChat(){
+    const data = dayData();
+    const body = $("chatBody"); body.innerHTML = "";
+    if (!data.chat.length){
+      body.innerHTML = '<div class="chat-empty">아래 버튼을 누르거나 메시지를 입력해 오늘을 돌아보세요.</div>';
+      return;
+    }
+    data.chat.forEach(m=>{
+      const div = document.createElement("div");
+      div.className = "msg " + (m.role==="user"?"user":"ai");
+      div.textContent = m.content;
+      body.appendChild(div);
+    });
+    body.scrollTop = body.scrollHeight;
+  }
+
+  async function sendMessage(text){
+    text = (text||"").trim();
+    if (!text) return;
+    const data = dayData();
+    data.chat.push({ role:"user", content:text });
+    saveFeedback(); renderChat();
+    $("chatText").value = "";
+
+    const body = $("chatBody");
+    const loading = document.createElement("div");
+    loading.className = "msg ai loading"; loading.textContent = "생각 중…";
+    body.appendChild(loading); body.scrollTop = body.scrollHeight;
+    $("chatSend").disabled = true;
+
+    const context = {
+      schedule: eventsOn(curDate),
+      notes: data.notes,
+      mistakes: mistakes
+    };
+    try {
+      const res = await fetch(BACKEND + "/chat", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ messages: data.chat, context })
+      });
+      if (!res.ok) throw new Error("서버 응답 " + res.status);
+      const out = await res.json();
+      data.chat.push({ role:"assistant", content: out.reply || "응답을 받지 못했습니다." });
+      saveFeedback(); renderChat();
+    } catch(e){
+      loading.remove();
+      data.chat.push({ role:"assistant", content: "(조언을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요. " + e.message + ")" });
+      saveFeedback(); renderChat();
+    } finally {
+      $("chatSend").disabled = false;
+    }
+  }
+
+  function setDate(key){
+    curDate = key;
+    $("dateInput").value = key;
+    renderTasks(); renderChat();
+  }
+
+  $("dateInput").addEventListener("change", ()=>{ if($("dateInput").value) setDate($("dateInput").value); });
+  $("todayBtn").addEventListener("click", ()=> setDate(todayKey()));
+  $("chatSend").addEventListener("click", ()=> sendMessage($("chatText").value));
+  $("chatText").addEventListener("keydown", (e)=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendMessage($("chatText").value); } });
+  $("quick").addEventListener("click", (e)=>{ const b=e.target.closest("button"); if(b) sendMessage(b.dataset.q); });
+  $("chatClear").addEventListener("click", ()=>{ const d=dayData(); d.chat=[]; saveFeedback(); renderChat(); });
+
+  async function init(){
+    loadAll();
+    fetch(BACKEND + "/health").catch(()=>{});   // 서버 미리 깨우기
+    try {
+      const res = await fetch("schedule.json", { cache:"no-store" });
+      if (res.ok){ const data = await res.json(); jsonEvents = data.events || []; }
+    } catch(e){ jsonEvents = []; }
+    $("note").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 회고가 저장됩니다)";
+    setDate(todayKey());
+  }
+  init();
+</script>
+</body>
+</html>
