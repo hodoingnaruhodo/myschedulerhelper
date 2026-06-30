@@ -1,4 +1,4 @@
-<!-- progress v2 -->
+<!-- progress v3 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -28,21 +28,39 @@
   .f-date { width: 150px; }
   .new .addbtn { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; margin-top: 10px; }
 
+  .sec-title { font-size: 13px; font-weight: 600; color: var(--muted); margin: 20px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sec-title:first-of-type { margin-top: 4px; }
+
   .task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
   .task.overdue { border-color: #f3c4c1; }
-  .t-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
-  .t-name { font-size: 15px; font-weight: 600; }
+  .task.complete { background: #fbfdfb; }
+  .t-head { display: flex; align-items: center; gap: 8px; }
+  .t-toggle { font-size: 11px; color: var(--muted); cursor: pointer; width: 12px; flex-shrink: 0; }
+  .t-name { font-size: 15px; font-weight: 600; cursor: pointer; }
   .t-dday { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
   .dd-near { background: #fdeceb; color: var(--danger); }
   .dd-soon { background: #fdf0d8; color: var(--warn); }
   .dd-ok { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
-  .t-del { margin-left: auto; color: #a55; font-size: 12px; cursor: pointer; }
+  .dd-done { background: #e7f6ee; color: var(--ok); }
+  .t-acts { margin-left: auto; display: flex; gap: 8px; }
+  .t-edit, .t-del { color: var(--muted); font-size: 12px; cursor: pointer; }
+  .t-del { color: #a55; }
   .t-del.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
   .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
   .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
   .bar-fill.done { background: var(--ok); }
   .t-meta { font-size: 13px; color: var(--muted); }
   .t-note { font-size: 13px; color: var(--ink); margin-top: 6px; white-space: pre-wrap; }
+
+  .t-edit-form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 4px; }
+  .t-edit-form .r { display: flex; gap: 6px; flex-wrap: wrap; }
+  .t-edit-form input { border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; font-size: 14px; font-family: inherit; }
+  .t-edit-form .ti-name { flex: 1; min-width: 150px; }
+  .t-edit-form .ti-date { width: 150px; }
+  .t-edit-form .ti-note { width: 100%; }
+  .t-edit-form .btns { display: flex; gap: 6px; }
+  .t-edit-form button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 7px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+  .t-edit-form button.cancel { background: var(--card); color: var(--muted); border-color: var(--line); }
 
   .steps { list-style: none; margin: 12px 0 6px; border-top: 1px solid var(--line); padding-top: 10px; }
   .step { padding: 7px 0; border-bottom: 1px solid #f0efe9; }
@@ -55,13 +73,15 @@
   .step-est { font-size: 12px; color: var(--muted); }
   .step-est .over { color: var(--danger); }
   .step-est .under { color: var(--ok); }
+  .step-acts { margin-left: auto; display: flex; gap: 6px; align-items: center; }
   .step-btn { font-size: 12px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-  .step-btn.undo { border-color: var(--line); color: var(--muted); }
-  .step-x { color: #b99; font-size: 12px; cursor: pointer; margin-left: 2px; }
+  .step-btn.minor { border-color: var(--line); color: var(--muted); }
+  .step-x { color: #b99; font-size: 12px; cursor: pointer; }
   .step-fb { font-size: 12px; color: var(--muted); margin-top: 3px; padding-left: 24px; font-style: italic; }
   .step-edit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; padding-left: 24px; }
   .step-edit input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
   .step-edit .e-h { width: 72px; }
+  .step-edit .e-name { flex: 1; min-width: 130px; }
   .step-edit .e-fb { flex: 1; min-width: 140px; }
   .step-edit button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
   .step-edit button.cancel { background: var(--card); color: var(--muted); border-color: var(--line); }
@@ -73,6 +93,7 @@
   .add-step button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
 
   .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+  .sec-empty { color: var(--muted); font-size: 13px; padding: 6px 2px 10px; }
   .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
 </style>
 </head>
@@ -84,7 +105,7 @@
     <a href="feedback.html" class="page-link">하루 회고</a>
     <a href="mistakes.html" class="page-link">실수 노트</a>
   </header>
-  <p class="sub">업무를 단계로 나눠 진행 상황과 완료 피드백을 기록합니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
+  <p class="sub">업무를 단계로 나눠 진행 상황과 완료 피드백을 기록합니다. 업무 제목을 누르면 단계가 펼쳐집니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
 
   <div class="new">
     <div class="row">
@@ -112,21 +133,29 @@
   })();
 
   let tasks = [];
-  let editing = null;   // {ti, si} - 완료 입력 중인 단계
+  let editing = null;      // null | {type:"taskInfo",id} | {type:"stepInfo",id,si} | {type:"stepDone",id,si}
+  let openIds = new Set();
 
+  function uid(){ return "t" + Date.now() + Math.random().toString(36).slice(2,7); }
   function migrate(list){
     return list.map(t=>{
-      if (t.steps) return t;
-      const steps = [];
-      if (t.totalHours){
-        steps.push({ name:"전체 작업", estHours:Number(t.totalHours)||0, done:(Number(t.doneHours)||0) >= (Number(t.totalHours)||0), actualHours:Number(t.doneHours)||0, feedback:"" });
+      let nt;
+      if (t.steps) nt = t;
+      else {
+        const steps = [];
+        if (t.totalHours){
+          steps.push({ name:"전체 작업", estHours:Number(t.totalHours)||0, done:(Number(t.doneHours)||0) >= (Number(t.totalHours)||0), actualHours:Number(t.doneHours)||0, feedback:"" });
+        }
+        nt = { name:t.name, deadline:t.deadline||"", note:t.note||"", steps };
       }
-      return { name:t.name, deadline:t.deadline||"", note:t.note||"", steps };
+      if (!nt.id) nt.id = uid();
+      return nt;
     });
   }
-  function load(){ try { tasks = migrate(JSON.parse(store.get("tasks")) || []); } catch(e){ tasks = []; } }
+  function load(){ try { tasks = migrate(JSON.parse(store.get("tasks")) || []); } catch(e){ tasks = []; } save(); }
   function save(){ store.set("tasks", JSON.stringify(tasks)); }
   function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function taskById(id){ return tasks.find(t=>t.id===id); }
 
   function dday(deadline){
     if (!deadline) return null;
@@ -142,113 +171,144 @@
     if (n <= 5) return { txt:"D-"+n, cls:"dd-soon" };
     return { txt:"D-"+n, cls:"dd-ok" };
   }
+  function isDone(t){ return t.steps.length>0 && t.steps.every(s=>s.done); }
 
-  function stepEl(t, ti, s, si){
+  function stepEl(t, s, si){
     const li = document.createElement("li"); li.className = "step" + (s.done?" done":"");
-    const row = document.createElement("div"); row.className = "step-row";
-    const mark = document.createElement("span"); mark.className = "step-mark" + (s.done?" on":"");
-    const name = document.createElement("span"); name.className = "step-name"; name.textContent = s.name;
-    row.appendChild(mark); row.appendChild(name);
+    const editType = editing && editing.id===t.id && editing.si===si ? editing.type : null;
 
-    const est = document.createElement("span"); est.className = "step-est";
+    if (editType === "stepInfo"){
+      const ed = document.createElement("div"); ed.className="step-edit";
+      const nm = document.createElement("input"); nm.className="e-name"; nm.type="text"; nm.placeholder="단계 이름"; nm.value=s.name||"";
+      const h = document.createElement("input"); h.className="e-h"; h.type="number"; h.min="0"; h.step="0.5"; h.placeholder="예상 h"; h.value=s.estHours||"";
+      const ok = document.createElement("button"); ok.textContent="저장";
+      ok.onclick = ()=>{ const v=nm.value.trim(); if(!v) return; s.name=v; s.estHours=Number(h.value)||0; editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      ed.appendChild(nm); ed.appendChild(h); ed.appendChild(ok); ed.appendChild(c);
+      li.appendChild(ed);
+      setTimeout(()=>nm.focus(),0);
+      return li;
+    }
+    if (editType === "stepDone"){
+      const row = document.createElement("div"); row.className="step-row";
+      row.innerHTML = '<span class="step-mark'+(s.done?" on":"")+'"></span><span class="step-name">'+esc(s.name)+'</span>';
+      li.appendChild(row);
+      const ed = document.createElement("div"); ed.className="step-edit";
+      const h = document.createElement("input"); h.className="e-h"; h.type="number"; h.min="0"; h.step="0.5"; h.placeholder="실제 h"; h.value = s.done ? (s.actualHours||"") : (s.estHours||"");
+      const fb = document.createElement("input"); fb.className="e-fb"; fb.type="text"; fb.placeholder="이 단계는 어땠나요? (예: 예상보다 오래 걸림)"; fb.value = s.feedback||"";
+      const ok = document.createElement("button"); ok.textContent="완료 저장";
+      ok.onclick = ()=>{ s.done=true; s.actualHours=Number(h.value)||0; s.feedback=fb.value.trim(); editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      ed.appendChild(h); ed.appendChild(fb); ed.appendChild(ok); ed.appendChild(c);
+      li.appendChild(ed);
+      setTimeout(()=>fb.focus(),0);
+      return li;
+    }
+
+    const row = document.createElement("div"); row.className="step-row";
+    const mark = document.createElement("span"); mark.className="step-mark"+(s.done?" on":"");
+    const name = document.createElement("span"); name.className="step-name"; name.textContent=s.name;
+    const est = document.createElement("span"); est.className="step-est";
     if (s.done){
-      let txt = " 예상 "+s.estHours+"h → 실제 "+s.actualHours+"h";
       const diff = (Number(s.actualHours)||0) - (Number(s.estHours)||0);
-      est.innerHTML = txt + (diff>0?' <span class="over">(+'+diff+'h)</span>':(diff<0?' <span class="under">('+diff+'h)</span>':''));
+      est.innerHTML = " 예상 "+s.estHours+"h → 실제 "+s.actualHours+"h" + (diff>0?' <span class="over">(+'+diff+'h)</span>':(diff<0?' <span class="under">('+diff+'h)</span>':''));
     } else {
       est.textContent = " 예상 "+s.estHours+"h";
     }
-    row.appendChild(est);
+    row.appendChild(mark); row.appendChild(name); row.appendChild(est);
 
-    const isEditing = editing && editing.ti===ti && editing.si===si;
-    if (!isEditing){
-      if (!s.done){
-        const btn = document.createElement("button"); btn.className="step-btn"; btn.textContent="완료";
-        btn.onclick = ()=>{ editing = {ti, si}; render(); };
-        row.appendChild(btn);
-      } else {
-        const undo = document.createElement("button"); undo.className="step-btn undo"; undo.textContent="되돌리기";
-        undo.onclick = ()=>{ s.done=false; s.feedback=""; save(); render(); };
-        row.appendChild(undo);
-      }
-      const x = document.createElement("span"); x.className="step-x"; x.textContent="✕";
-      x.title = "단계 삭제";
-      x.onclick = ()=>{ t.steps.splice(si,1); save(); render(); };
-      row.appendChild(x);
+    const acts = document.createElement("div"); acts.className="step-acts";
+    if (!s.done){
+      const done = document.createElement("button"); done.className="step-btn"; done.textContent="완료";
+      done.onclick = ()=>{ editing={type:"stepDone",id:t.id,si}; render(); };
+      const edit = document.createElement("button"); edit.className="step-btn minor"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"stepInfo",id:t.id,si}; render(); };
+      acts.appendChild(done); acts.appendChild(edit);
+    } else {
+      const edit = document.createElement("button"); edit.className="step-btn"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"stepDone",id:t.id,si}; render(); };
+      const undo = document.createElement("button"); undo.className="step-btn minor"; undo.textContent="되돌리기";
+      undo.onclick = ()=>{ s.done=false; save(); render(); };
+      acts.appendChild(edit); acts.appendChild(undo);
     }
+    const x = document.createElement("span"); x.className="step-x"; x.textContent="✕"; x.title="단계 삭제";
+    x.onclick = ()=>{ t.steps.splice(si,1); save(); render(); };
+    acts.appendChild(x);
+    row.appendChild(acts);
     li.appendChild(row);
 
     if (s.done && s.feedback){
       const fb = document.createElement("div"); fb.className="step-fb"; fb.textContent = "“"+s.feedback+"”";
       li.appendChild(fb);
     }
-
-    if (isEditing){
-      const ed = document.createElement("div"); ed.className="step-edit";
-      const h = document.createElement("input"); h.type="number"; h.min="0"; h.step="0.5"; h.className="e-h"; h.placeholder="실제 h"; h.value = s.estHours||"";
-      const fb = document.createElement("input"); fb.type="text"; fb.className="e-fb"; fb.placeholder="이 단계는 어땠나요? (예: 예상보다 오래 걸림)";
-      const ok = document.createElement("button"); ok.textContent="완료 저장";
-      ok.onclick = ()=>{ s.done=true; s.actualHours=Number(h.value)||0; s.feedback=fb.value.trim(); editing=null; save(); render(); };
-      const cancel = document.createElement("button"); cancel.className="cancel"; cancel.textContent="취소";
-      cancel.onclick = ()=>{ editing=null; render(); };
-      ed.appendChild(h); ed.appendChild(fb); ed.appendChild(ok); ed.appendChild(cancel);
-      li.appendChild(ed);
-      setTimeout(()=>fb.focus(), 0);
-    }
     return li;
   }
 
-  function render(){
-    const wrap = $("tasks"); wrap.innerHTML = "";
-    if (!tasks.length){
-      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가하고, 단계를 나눠 보세요.</div>';
-      $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
-      return;
-    }
-    const order = tasks.map((t,i)=>({t,i})).sort((a,b)=>{
-      const da = a.t.deadline ? dday(a.t.deadline) : 9999;
-      const db = b.t.deadline ? dday(b.t.deadline) : 9999;
-      return da - db;
-    });
+  function taskCard(t){
+    const steps = t.steps || [];
+    const total = steps.length;
+    const doneCount = steps.filter(s=>s.done).length;
+    const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
+    const estSum = steps.reduce((a,s)=>a+(Number(s.estHours)||0),0);
+    const actSum = steps.filter(s=>s.done).reduce((a,s)=>a+(Number(s.actualHours)||0),0);
+    const complete = isDone(t);
+    const dn = dday(t.deadline);
+    const dd = complete ? { txt:"완료", cls:"dd-done" } : ddText(dn);
+    const open = openIds.has(t.id);
 
-    order.forEach(({t, i})=>{
-      const ti = i;
-      const steps = t.steps || [];
-      const total = steps.length;
-      const doneCount = steps.filter(s=>s.done).length;
-      const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
-      const estSum = steps.reduce((a,s)=>a+(Number(s.estHours)||0),0);
-      const actSum = steps.filter(s=>s.done).reduce((a,s)=>a+(Number(s.actualHours)||0),0);
-      const dn = dday(t.deadline);
-      const dd = ddText(dn);
+    const card = document.createElement("div"); card.className = "task" + (complete?" complete":(dn!==null&&dn<0?" overdue":""));
 
-      const card = document.createElement("div"); card.className = "task" + (dn!==null && dn<0 ? " overdue" : "");
-      const head = document.createElement("div"); head.className = "t-head";
-      head.innerHTML = '<span class="t-name">'+esc(t.name)+'</span><span class="t-dday '+dd.cls+'">'+dd.txt+'</span>';
-      const del = document.createElement("span"); del.className = "t-del"; del.textContent = "삭제";
-      let armed = false;
-      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { tasks.splice(ti,1); if(editing&&editing.ti===ti) editing=null; save(); render(); } };
-      head.appendChild(del);
+    if (editing && editing.type==="taskInfo" && editing.id===t.id){
+      const f = document.createElement("div"); f.className="t-edit-form";
+      const r1 = document.createElement("div"); r1.className="r";
+      const nm = document.createElement("input"); nm.className="ti-name"; nm.type="text"; nm.placeholder="업무 이름"; nm.value=t.name||"";
+      const dt = document.createElement("input"); dt.className="ti-date"; dt.type="date"; dt.value=t.deadline||"";
+      r1.appendChild(nm); r1.appendChild(dt);
+      const note = document.createElement("input"); note.className="ti-note"; note.type="text"; note.placeholder="메모 (선택)"; note.value=t.note||"";
+      const btns = document.createElement("div"); btns.className="btns";
+      const ok = document.createElement("button"); ok.textContent="저장";
+      ok.onclick = ()=>{ const v=nm.value.trim(); if(!v) return; t.name=v; t.deadline=dt.value||""; t.note=note.value.trim(); editing=null; save(); render(); };
+      const c = document.createElement("button"); c.className="cancel"; c.textContent="취소"; c.onclick=()=>{ editing=null; render(); };
+      btns.appendChild(ok); btns.appendChild(c);
+      f.appendChild(r1); f.appendChild(note); f.appendChild(btns);
+      card.appendChild(f);
+    } else {
+      const head = document.createElement("div"); head.className="t-head";
+      const tog = document.createElement("span"); tog.className="t-toggle"; tog.textContent = open ? "▼" : "▶";
+      const name = document.createElement("span"); name.className="t-name"; name.textContent = t.name;
+      const toggle = ()=>{ if(open) openIds.delete(t.id); else openIds.add(t.id); render(); };
+      tog.onclick = toggle; name.onclick = toggle;
+      const ddEl = document.createElement("span"); ddEl.className="t-dday "+dd.cls; ddEl.textContent=dd.txt;
+      head.appendChild(tog); head.appendChild(name); head.appendChild(ddEl);
+      const acts = document.createElement("div"); acts.className="t-acts";
+      const edit = document.createElement("span"); edit.className="t-edit"; edit.textContent="수정";
+      edit.onclick = ()=>{ editing={type:"taskInfo",id:t.id}; render(); };
+      const del = document.createElement("span"); del.className="t-del"; del.textContent="삭제";
+      let armed=false;
+      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { const i=tasks.findIndex(x=>x.id===t.id); if(i>=0)tasks.splice(i,1); save(); render(); } };
+      acts.appendChild(edit); acts.appendChild(del);
+      head.appendChild(acts);
       card.appendChild(head);
+    }
 
-      const bar = document.createElement("div"); bar.className="bar";
-      const fill = document.createElement("div"); fill.className="bar-fill"+(pct>=100&&total>0?" done":""); fill.style.width=pct+"%";
-      bar.appendChild(fill); card.appendChild(bar);
+    const bar = document.createElement("div"); bar.className="bar";
+    const fill = document.createElement("div"); fill.className="bar-fill"+(complete?" done":""); fill.style.width=pct+"%";
+    bar.appendChild(fill); card.appendChild(bar);
 
-      const meta = document.createElement("div"); meta.className="t-meta";
-      meta.textContent = total>0
-        ? ("단계 "+doneCount+"/"+total+" 완료 ("+pct+"%) · 예상 합 "+estSum+"h · 실제 "+actSum+"h")
-        : "아직 단계가 없습니다. 아래에서 단계를 추가하세요.";
-      card.appendChild(meta);
+    const meta = document.createElement("div"); meta.className="t-meta";
+    meta.textContent = total>0
+      ? ("단계 "+doneCount+"/"+total+" 완료 ("+pct+"%) · 예상 합 "+estSum+"h · 실제 "+actSum+"h")
+      : "아직 단계가 없습니다. 펼쳐서 단계를 추가하세요.";
+    card.appendChild(meta);
 
-      if (t.note){ const note=document.createElement("div"); note.className="t-note"; note.textContent=t.note; card.appendChild(note); }
+    if (t.note){ const note=document.createElement("div"); note.className="t-note"; note.textContent=t.note; card.appendChild(note); }
 
+    if (open){
       if (total>0){
         const ul = document.createElement("ul"); ul.className="steps";
-        steps.forEach((s, si)=> ul.appendChild(stepEl(t, ti, s, si)));
+        steps.forEach((s, si)=> ul.appendChild(stepEl(t, s, si)));
         card.appendChild(ul);
       }
-
       const as = document.createElement("div"); as.className="add-step";
       const sn = document.createElement("input"); sn.className="s-name"; sn.type="text"; sn.placeholder="단계 추가 (예: 자료 수집)";
       const sh = document.createElement("input"); sh.className="s-h"; sh.type="number"; sh.min="0"; sh.step="0.5"; sh.placeholder="예상 h";
@@ -258,17 +318,42 @@
       sn.addEventListener("keydown",(e)=>{ if(e.key==="Enter") addStep(); });
       as.appendChild(sn); as.appendChild(sh); as.appendChild(sb);
       card.appendChild(as);
+    }
+    return card;
+  }
 
-      wrap.appendChild(card);
+  function render(){
+    const wrap = $("tasks"); wrap.innerHTML = "";
+    if (!tasks.length){
+      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가하고, 단계를 나눠 보세요.</div>';
+      $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
+      return;
+    }
+    const active = tasks.filter(t=>!isDone(t)).sort((a,b)=>{
+      const da = a.deadline ? dday(a.deadline) : 9999;
+      const db = b.deadline ? dday(b.deadline) : 9999;
+      return da - db;
     });
+    const done = tasks.filter(t=>isDone(t));
+
+    const at = document.createElement("div"); at.className="sec-title"; at.textContent = "진행 중 ("+active.length+")";
+    wrap.appendChild(at);
+    if (active.length){ active.forEach(t=> wrap.appendChild(taskCard(t))); }
+    else { const e=document.createElement("div"); e.className="sec-empty"; e.textContent="진행 중인 업무가 없습니다."; wrap.appendChild(e); }
+
+    const dt = document.createElement("div"); dt.className="sec-title"; dt.textContent = "완료 ("+done.length+")";
+    wrap.appendChild(dt);
+    if (done.length){ done.forEach(t=> wrap.appendChild(taskCard(t))); }
+    else { const e=document.createElement("div"); e.className="sec-empty"; e.textContent="완료한 업무가 여기에 모입니다."; wrap.appendChild(e); }
+
     $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
   }
 
   function addTask(){
     const name = $("nName").value.trim();
     if (!name){ $("nName").focus(); return; }
-    tasks.push({ name, deadline: $("nDate").value || "", note: $("nNote").value.trim(), steps: [] });
-    save();
+    const t = { id:uid(), name, deadline: $("nDate").value || "", note: $("nNote").value.trim(), steps: [] };
+    tasks.push(t); openIds.add(t.id); save();
     $("nName").value=""; $("nDate").value=""; $("nNote").value="";
     render();
   }
