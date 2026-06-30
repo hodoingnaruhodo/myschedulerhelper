@@ -1,4 +1,4 @@
-<!-- index v9 -->
+<!-- index v10 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -26,7 +26,10 @@
   .ai-trigger:hover { background: #2f4cc0; }
   .ai-loading { text-align: center; color: var(--muted); padding: 36px 12px; font-size: 14px; }
   .ai-loading span { display: block; font-size: 12px; margin-top: 6px; }
-  .ai-advice { white-space: pre-wrap; font-size: 14px; line-height: 1.65; color: var(--ink); }
+  .ai-advice { font-size: 14px; line-height: 1.65; color: var(--ink); }
+  .ai-advice .ad-line { margin-bottom: 8px; }
+  .ai-advice .ad-item { margin: 4px 0 4px 6px; padding-left: 4px; }
+  .ai-advice strong { font-weight: 600; }
   .ai-error { color: var(--danger); font-size: 14px; line-height: 1.5; }
 
   .calendar { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -41,6 +44,7 @@
   .cell.today { background: var(--today); box-shadow: inset 0 0 0 2px var(--today-line); }
   .cell.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
   .cell.pulse { animation: cellpulse 0.9s ease 3; }
+  .cell.highlight { background: #ffe3e0; box-shadow: inset 0 0 0 2px var(--now); }
   @keyframes cellpulse { 0%,100% { box-shadow: inset 0 0 0 2px var(--accent); } 50% { box-shadow: inset 0 0 0 4px var(--today-line); background: var(--today); } }
   .daynum { font-size: 13px; font-weight: 500; }
   .cell.sun .daynum { color: #d6453e; } .cell.sat .daynum { color: #2f6fd6; }
@@ -203,12 +207,6 @@
         <div><label>업무 카테고리</label><input type="text" id="fType" list="typeList" placeholder="예: 월말 정산"><datalist id="typeList"></datalist></div>
         <div><label>제목</label><input type="text" id="fTitle" placeholder="세부 업무 제목"></div>
         <div><label>메모</label><input type="text" id="fMemo" placeholder="선택"></div>
-        <div class="mbox" id="addMbox" style="display:none">
-          <div class="mp-title" id="addMTitle"></div>
-          <ul id="addMList"></ul>
-          <div class="none" id="addMNone" style="display:none">아직 기록된 실수가 없습니다.</div>
-          <div class="mp-add"><input type="text" id="addMInput" list="addMDL" placeholder="실수 기록 (기존 실수는 목록에서 선택)"><datalist id="addMDL"></datalist><button id="addMAdd">추가</button></div>
-        </div>
         <div class="form-btns"><button class="btn-save" id="fSave">저장</button><button class="btn-cancel" id="fCancel">취소</button></div>
       </div>
     </div>
@@ -257,12 +255,33 @@
       if (!res.ok) throw new Error("서버 응답 " + res.status);
       const data = await res.json();
       body.innerHTML = '<div class="ai-advice"></div>';
-      body.querySelector(".ai-advice").textContent = data.advice || "조언을 받지 못했습니다.";
+      renderAdvice(body.querySelector(".ai-advice"), data.advice || "조언을 받지 못했습니다.");
     } catch (e) {
       body.innerHTML = '<div class="ai-error">조언을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.<br>(' + e.message + ')</div>';
     }
   }
   function closeAi(){ $("aiOverlay").classList.remove("open"); }
+
+  function renderAdvice(container, text){
+    container.innerHTML = "";
+    const esc = (s)=> s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const bold = (s)=> esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    // 줄 단위로 끊고, * 또는 - 로 시작하면 글머리표로
+    text.split(/\r?\n/).forEach(raw=>{
+      let line = raw.trim();
+      if (!line){ return; }
+      const m = line.match(/^[\*\-]\s+(.*)$/);
+      const div = document.createElement("div");
+      if (m){
+        div.className = "ad-item";
+        div.innerHTML = "• " + bold(m[1]);
+      } else {
+        div.className = "ad-line";
+        div.innerHTML = bold(line);
+      }
+      container.appendChild(div);
+    });
+  }
 
   const store = (() => {
     let mem = {}, ok = false;
@@ -274,6 +293,7 @@
 
   let jsonEvents = [], myEvents = [], mistakes = {};
   let viewYear, viewMonth, selectedKey = null, currentDayKey = null, currentSelType = null, editingIdx = null;
+  let highlightDates = [];
 
   function loadMy(){ try { myEvents = JSON.parse(store.get("myEvents")) || []; } catch(e){ myEvents = []; } }
   function saveMy(){ store.set("myEvents", JSON.stringify(myEvents)); }
@@ -313,6 +333,7 @@
       if (dow===6) cell.classList.add("sat");
       if (key===tKey) cell.classList.add("today");
       if (key===selectedKey) cell.classList.add("selected");
+      if (highlightDates.includes(key)) cell.classList.add("highlight");
       const num = document.createElement("div"); num.className="daynum"; num.textContent=d; cell.appendChild(num);
       const de = eventsOn(key);
       if (de.length){
@@ -470,8 +491,8 @@
     editingIdx = null;
     $("fSave").textContent = "저장";
     $("addForm").classList.remove("open");
-    $("fTime").value="09:00"; $("fEnd").value="10:00"; $("fType").value=""; $("fTitle").value=""; $("fMemo").value=""; $("addMInput").value="";
-    $("addMbox").style.display="none"; refreshTypeList();
+    $("fTime").value="09:00"; $("fEnd").value="10:00"; $("fType").value=""; $("fTitle").value=""; $("fMemo").value="";
+    refreshTypeList();
   }
   function openEdit(idx){
     const e = myEvents[idx];
@@ -482,8 +503,6 @@
     $("fType").value = e.taskType || "";
     $("fTitle").value = e.title || "";
     $("fMemo").value = e.memo || "";
-    if (e.taskType){ renderMistake("add", e.taskType); $("addMbox").style.display="block"; }
-    else { $("addMbox").style.display="none"; }
     $("fSave").textContent = "수정 저장";
     $("addForm").classList.add("open");
     refreshTypeList();
@@ -523,8 +542,6 @@
     if (willOpen){ resetForm(); $("addForm").classList.add("open"); }
     else { resetForm(); }
   });
-  $("fType").addEventListener("input", ()=>{ const t=$("fType").value.trim(); if(t){ renderMistake("add",t); $("addMbox").style.display="block"; } else { $("addMbox").style.display="none"; } });
-  $("addMAdd").addEventListener("click", ()=>{ const t=$("fType").value.trim(); if(!t){ $("fType").focus(); return; } addMistake("add", t); });
   $("selMAdd").addEventListener("click", ()=>{ if(!currentSelType) return; addMistake("sel", currentSelType); });
   $("fSave").addEventListener("click", addEvent);
   $("fCancel").addEventListener("click", resetForm);
@@ -547,12 +564,16 @@
     hint.textContent = store.ok ? "더블클릭으로 하루 화면 열기 · 일정 블록을 클릭하면 업무별 과거 실수가 보입니다" : "저장 불가 환경 (이 화면에선 새로고침 시 추가분이 사라집니다)";
     $("status").after(hint);
     const params = new URLSearchParams(location.search);
-    const hl = params.get("date");
-    if (hl && /^\d{4}-\d{2}-\d{2}$/.test(hl)){
-      const [yy, mm] = hl.split("-").map(Number);
+    const datesParam = params.get("dates") || params.get("date");
+    if (datesParam){
+      highlightDates = datesParam.split(",").map(s=>s.trim()).filter(s=>/^\d{4}-\d{2}-\d{2}$/.test(s));
+    }
+    if (highlightDates.length){
+      const recent = highlightDates.slice().sort().pop();
+      const [yy, mm] = recent.split("-").map(Number);
       viewYear = yy; viewMonth = mm - 1;
-      selectDay(hl);
-      setTimeout(()=>{ const c = document.querySelector('.cell[data-key="'+hl+'"]'); if(c){ c.classList.add("pulse"); c.scrollIntoView({block:"center", behavior:"smooth"}); } }, 150);
+      render();
+      setTimeout(()=>{ const c = document.querySelector('.cell[data-key="'+recent+'"]'); if(c){ c.scrollIntoView({block:"center", behavior:"smooth"}); } }, 150);
     } else {
       const t = new Date(); viewYear=t.getFullYear(); viewMonth=t.getMonth(); render();
     }
