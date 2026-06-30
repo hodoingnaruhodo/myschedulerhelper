@@ -1,4 +1,4 @@
-<!-- progress v1 -->
+<!-- progress v2 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -8,7 +8,7 @@
 <style>
   :root {
     --bg: #f7f7f5; --card: #ffffff; --ink: #1c1c1a; --muted: #6b6b66;
-    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd; --danger: #d6453e; --warn: #b5790c;
+    --line: #e4e4df; --accent: #3b5bdb; --accent-soft: #e7ecfd; --danger: #d6453e; --warn: #b5790c; --ok: #2e9e5b;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.5; padding: 20px; }
@@ -26,7 +26,6 @@
   .new input:focus { outline: none; border-color: var(--accent); }
   .f-name { flex: 1; min-width: 160px; }
   .f-date { width: 150px; }
-  .f-hours { width: 110px; }
   .new .addbtn { border: none; background: var(--accent); color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; cursor: pointer; margin-top: 10px; }
 
   .task { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
@@ -41,13 +40,37 @@
   .t-del.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
   .bar { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
   .bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
-  .bar-fill.done { background: #2e9e5b; }
+  .bar-fill.done { background: var(--ok); }
   .t-meta { font-size: 13px; color: var(--muted); }
   .t-note { font-size: 13px; color: var(--ink); margin-top: 6px; white-space: pre-wrap; }
-  .t-prog { display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-  .t-prog input { width: 72px; border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; }
-  .t-prog button { border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
-  .t-prog .donebtn { border-color: #2e9e5b; color: #2e9e5b; }
+
+  .steps { list-style: none; margin: 12px 0 6px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .step { padding: 7px 0; border-bottom: 1px solid #f0efe9; }
+  .step:last-child { border-bottom: none; }
+  .step-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .step-mark { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; }
+  .step-mark.on { background: var(--ok); border-color: var(--ok); }
+  .step-name { font-size: 14px; }
+  .step.done .step-name { color: var(--muted); }
+  .step-est { font-size: 12px; color: var(--muted); }
+  .step-est .over { color: var(--danger); }
+  .step-est .under { color: var(--ok); }
+  .step-btn { font-size: 12px; border: 1px solid var(--accent); background: var(--card); color: var(--accent); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .step-btn.undo { border-color: var(--line); color: var(--muted); }
+  .step-x { color: #b99; font-size: 12px; cursor: pointer; margin-left: 2px; }
+  .step-fb { font-size: 12px; color: var(--muted); margin-top: 3px; padding-left: 24px; font-style: italic; }
+  .step-edit { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; padding-left: 24px; }
+  .step-edit input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  .step-edit .e-h { width: 72px; }
+  .step-edit .e-fb { flex: 1; min-width: 140px; }
+  .step-edit button { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  .step-edit button.cancel { background: var(--card); color: var(--muted); border-color: var(--line); }
+
+  .add-step { display: flex; gap: 6px; margin-top: 8px; padding-top: 4px; }
+  .add-step input { border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; font-size: 13px; font-family: inherit; }
+  .add-step .s-name { flex: 1; }
+  .add-step .s-h { width: 90px; }
+  .add-step button { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 7px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
 
   .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
   .note { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
@@ -61,16 +84,15 @@
     <a href="feedback.html" class="page-link">하루 회고</a>
     <a href="mistakes.html" class="page-link">실수 노트</a>
   </header>
-  <p class="sub">마감이 있는 업무의 진행 상황을 기록합니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
+  <p class="sub">업무를 단계로 나눠 진행 상황과 완료 피드백을 기록합니다. (근무시간 08:30~17:30 기준 추천 예정)</p>
 
   <div class="new">
     <div class="row">
       <div class="f-name"><label>업무 이름</label><input type="text" id="nName" placeholder="예: 분기 보고서"></div>
       <div class="f-date"><label>마감일</label><input type="date" id="nDate"></div>
-      <div class="f-hours"><label>예상 시간(h)</label><input type="number" id="nHours" min="0" step="0.5" placeholder="8"></div>
     </div>
     <div class="row" style="margin-top:8px;">
-      <div class="f-name"><label>메모 (선택)</label><input type="text" id="nNote" placeholder="진행 상황·세부 내용"></div>
+      <div class="f-name"><label>메모 (선택)</label><input type="text" id="nNote" placeholder="세부 내용"></div>
     </div>
     <button class="addbtn" id="addBtn">업무 추가</button>
   </div>
@@ -90,7 +112,19 @@
   })();
 
   let tasks = [];
-  function load(){ try { tasks = JSON.parse(store.get("tasks")) || []; } catch(e){ tasks = []; } }
+  let editing = null;   // {ti, si} - 완료 입력 중인 단계
+
+  function migrate(list){
+    return list.map(t=>{
+      if (t.steps) return t;
+      const steps = [];
+      if (t.totalHours){
+        steps.push({ name:"전체 작업", estHours:Number(t.totalHours)||0, done:(Number(t.doneHours)||0) >= (Number(t.totalHours)||0), actualHours:Number(t.doneHours)||0, feedback:"" });
+      }
+      return { name:t.name, deadline:t.deadline||"", note:t.note||"", steps };
+    });
+  }
+  function load(){ try { tasks = migrate(JSON.parse(store.get("tasks")) || []); } catch(e){ tasks = []; } }
   function save(){ store.set("tasks", JSON.stringify(tasks)); }
   function esc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
@@ -109,23 +143,82 @@
     return { txt:"D-"+n, cls:"dd-ok" };
   }
 
+  function stepEl(t, ti, s, si){
+    const li = document.createElement("li"); li.className = "step" + (s.done?" done":"");
+    const row = document.createElement("div"); row.className = "step-row";
+    const mark = document.createElement("span"); mark.className = "step-mark" + (s.done?" on":"");
+    const name = document.createElement("span"); name.className = "step-name"; name.textContent = s.name;
+    row.appendChild(mark); row.appendChild(name);
+
+    const est = document.createElement("span"); est.className = "step-est";
+    if (s.done){
+      let txt = " 예상 "+s.estHours+"h → 실제 "+s.actualHours+"h";
+      const diff = (Number(s.actualHours)||0) - (Number(s.estHours)||0);
+      est.innerHTML = txt + (diff>0?' <span class="over">(+'+diff+'h)</span>':(diff<0?' <span class="under">('+diff+'h)</span>':''));
+    } else {
+      est.textContent = " 예상 "+s.estHours+"h";
+    }
+    row.appendChild(est);
+
+    const isEditing = editing && editing.ti===ti && editing.si===si;
+    if (!isEditing){
+      if (!s.done){
+        const btn = document.createElement("button"); btn.className="step-btn"; btn.textContent="완료";
+        btn.onclick = ()=>{ editing = {ti, si}; render(); };
+        row.appendChild(btn);
+      } else {
+        const undo = document.createElement("button"); undo.className="step-btn undo"; undo.textContent="되돌리기";
+        undo.onclick = ()=>{ s.done=false; s.feedback=""; save(); render(); };
+        row.appendChild(undo);
+      }
+      const x = document.createElement("span"); x.className="step-x"; x.textContent="✕";
+      x.title = "단계 삭제";
+      x.onclick = ()=>{ t.steps.splice(si,1); save(); render(); };
+      row.appendChild(x);
+    }
+    li.appendChild(row);
+
+    if (s.done && s.feedback){
+      const fb = document.createElement("div"); fb.className="step-fb"; fb.textContent = "“"+s.feedback+"”";
+      li.appendChild(fb);
+    }
+
+    if (isEditing){
+      const ed = document.createElement("div"); ed.className="step-edit";
+      const h = document.createElement("input"); h.type="number"; h.min="0"; h.step="0.5"; h.className="e-h"; h.placeholder="실제 h"; h.value = s.estHours||"";
+      const fb = document.createElement("input"); fb.type="text"; fb.className="e-fb"; fb.placeholder="이 단계는 어땠나요? (예: 예상보다 오래 걸림)";
+      const ok = document.createElement("button"); ok.textContent="완료 저장";
+      ok.onclick = ()=>{ s.done=true; s.actualHours=Number(h.value)||0; s.feedback=fb.value.trim(); editing=null; save(); render(); };
+      const cancel = document.createElement("button"); cancel.className="cancel"; cancel.textContent="취소";
+      cancel.onclick = ()=>{ editing=null; render(); };
+      ed.appendChild(h); ed.appendChild(fb); ed.appendChild(ok); ed.appendChild(cancel);
+      li.appendChild(ed);
+      setTimeout(()=>fb.focus(), 0);
+    }
+    return li;
+  }
+
   function render(){
     const wrap = $("tasks"); wrap.innerHTML = "";
     if (!tasks.length){
-      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가해 보세요.</div>';
+      wrap.innerHTML = '<div class="empty">아직 등록된 업무가 없습니다.<br>위에서 마감이 있는 업무를 추가하고, 단계를 나눠 보세요.</div>';
       $("noteEl").textContent = store.ok ? "" : "저장 불가 환경 (실제 사이트에서 저장됩니다)";
       return;
     }
-    const sorted = tasks.slice().sort((a,b)=>{
-      const da = a.deadline ? dday(a.deadline) : 9999;
-      const db = b.deadline ? dday(b.deadline) : 9999;
+    const order = tasks.map((t,i)=>({t,i})).sort((a,b)=>{
+      const da = a.t.deadline ? dday(a.t.deadline) : 9999;
+      const db = b.t.deadline ? dday(b.t.deadline) : 9999;
       return da - db;
     });
-    sorted.forEach(t=>{
-      const i = tasks.indexOf(t);
-      const total = Number(t.totalHours)||0, done = Number(t.doneHours)||0;
-      const pct = total > 0 ? Math.min(100, Math.round(done/total*100)) : 0;
-      const remain = Math.max(0, total - done);
+
+    order.forEach(({t, i})=>{
+      const ti = i;
+      const steps = t.steps || [];
+      const total = steps.length;
+      const doneCount = steps.filter(s=>s.done).length;
+      const pct = total > 0 ? Math.round(doneCount/total*100) : 0;
+      const estSum = steps.reduce((a,s)=>a+(Number(s.estHours)||0),0);
+      const actSum = steps.filter(s=>s.done).reduce((a,s)=>a+(Number(s.actualHours)||0),0);
       const dn = dday(t.deadline);
       const dd = ddText(dn);
 
@@ -134,28 +227,37 @@
       head.innerHTML = '<span class="t-name">'+esc(t.name)+'</span><span class="t-dday '+dd.cls+'">'+dd.txt+'</span>';
       const del = document.createElement("span"); del.className = "t-del"; del.textContent = "삭제";
       let armed = false;
-      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { tasks.splice(i,1); save(); render(); } };
+      del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { tasks.splice(ti,1); if(editing&&editing.ti===ti) editing=null; save(); render(); } };
       head.appendChild(del);
       card.appendChild(head);
 
       const bar = document.createElement("div"); bar.className="bar";
-      const fill = document.createElement("div"); fill.className="bar-fill"+(pct>=100?" done":""); fill.style.width=pct+"%";
+      const fill = document.createElement("div"); fill.className="bar-fill"+(pct>=100&&total>0?" done":""); fill.style.width=pct+"%";
       bar.appendChild(fill); card.appendChild(bar);
 
       const meta = document.createElement("div"); meta.className="t-meta";
-      meta.textContent = "진행 "+pct+"% · 예상 "+total+"h · 완료 "+done+"h · 남음 "+remain+"h";
+      meta.textContent = total>0
+        ? ("단계 "+doneCount+"/"+total+" 완료 ("+pct+"%) · 예상 합 "+estSum+"h · 실제 "+actSum+"h")
+        : "아직 단계가 없습니다. 아래에서 단계를 추가하세요.";
       card.appendChild(meta);
 
       if (t.note){ const note=document.createElement("div"); note.className="t-note"; note.textContent=t.note; card.appendChild(note); }
 
-      const prog = document.createElement("div"); prog.className="t-prog";
-      const inp = document.createElement("input"); inp.type="number"; inp.min="0"; inp.step="0.5"; inp.placeholder="시간";
-      const addH = document.createElement("button"); addH.textContent="완료 시간 추가";
-      addH.onclick = ()=>{ const h=Number(inp.value); if(h>0){ t.doneHours=(Number(t.doneHours)||0)+h; save(); render(); } };
-      const doneBtn = document.createElement("button"); doneBtn.className="donebtn"; doneBtn.textContent="완료 처리";
-      doneBtn.onclick = ()=>{ t.doneHours=total; save(); render(); };
-      prog.appendChild(inp); prog.appendChild(addH); prog.appendChild(doneBtn);
-      card.appendChild(prog);
+      if (total>0){
+        const ul = document.createElement("ul"); ul.className="steps";
+        steps.forEach((s, si)=> ul.appendChild(stepEl(t, ti, s, si)));
+        card.appendChild(ul);
+      }
+
+      const as = document.createElement("div"); as.className="add-step";
+      const sn = document.createElement("input"); sn.className="s-name"; sn.type="text"; sn.placeholder="단계 추가 (예: 자료 수집)";
+      const sh = document.createElement("input"); sh.className="s-h"; sh.type="number"; sh.min="0"; sh.step="0.5"; sh.placeholder="예상 h";
+      const sb = document.createElement("button"); sb.textContent="추가";
+      const addStep = ()=>{ const nm=sn.value.trim(); if(!nm) return; t.steps.push({ name:nm, estHours:Number(sh.value)||0, done:false, actualHours:0, feedback:"" }); save(); render(); };
+      sb.onclick = addStep;
+      sn.addEventListener("keydown",(e)=>{ if(e.key==="Enter") addStep(); });
+      as.appendChild(sn); as.appendChild(sh); as.appendChild(sb);
+      card.appendChild(as);
 
       wrap.appendChild(card);
     });
@@ -165,15 +267,9 @@
   function addTask(){
     const name = $("nName").value.trim();
     if (!name){ $("nName").focus(); return; }
-    tasks.push({
-      name,
-      deadline: $("nDate").value || "",
-      totalHours: Number($("nHours").value) || 0,
-      doneHours: 0,
-      note: $("nNote").value.trim()
-    });
+    tasks.push({ name, deadline: $("nDate").value || "", note: $("nNote").value.trim(), steps: [] });
     save();
-    $("nName").value=""; $("nDate").value=""; $("nHours").value=""; $("nNote").value="";
+    $("nName").value=""; $("nDate").value=""; $("nNote").value="";
     render();
   }
   $("addBtn").addEventListener("click", addTask);
