@@ -1,4 +1,4 @@
-<!-- v5 -->
+<!-- mistakes v6 -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -43,6 +43,7 @@
   .m-count.c3 { background: #fdeceb; color: var(--danger); }
   .modal .m-count.c1 { background: var(--card); }
   .m-top .mdel { color: #a55; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .m-top .mdel.armed { background: var(--danger); color: #fff; border-radius: 4px; padding: 1px 6px; }
   .m-dates { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center; }
   .m-dates .lab { font-size: 12px; color: var(--muted); }
   .date-chip { font-size: 12px; color: var(--accent); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; text-decoration: none; cursor: pointer; }
@@ -185,7 +186,8 @@
     const span = document.createElement("span"); span.className="mtxt"; span.textContent=item.text;
     const badge = document.createElement("span"); badge.className="m-count "+(cnt>=3?"c3":cnt===2?"c2":"c1"); badge.textContent=cnt+"회";
     const del = document.createElement("span"); del.className="mdel"; del.textContent="삭제";
-    del.onclick = ()=>removeMistake(cat, item);
+    let armed = false;
+    del.onclick = ()=>{ if(!armed){ armed=true; del.textContent="한번 더"; del.classList.add("armed"); } else { removeMistake(cat, item); } };
     top.appendChild(span); top.appendChild(badge); top.appendChild(del);
     li.appendChild(top);
 
